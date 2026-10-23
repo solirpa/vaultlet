@@ -1,52 +1,54 @@
 # Vaultlet
 
-Local-first 密码管理器，Bitwarden 的无服务器平替。
+English | [简体中文](README.zh-CN.md)
 
-- Vault 是标准 **KDBX 4** 文件（Argon2id + AES-256），可与 KeePassXC / Strongbox / KeePassium / KeePassDX 互通，手机端直接用这些客户端。
-- 多设备同步靠网盘：把 vault 放进 iCloud Drive / Dropbox / OneDrive 目录，或配置坚果云 WebDAV；冲突按条目级时间戳合并。
-- 桌面端：Tauri 2 + React，支持 macOS / Windows / Linux。
-- 浏览器插件：Chrome / Edge / Brave / Firefox，通过 Native Messaging 与桌面端通信，密钥不离开桌面进程。
-- 导入 Bitwarden 导出（JSON / CSV / 密码保护 JSON），支持 TOTP。
+A local-first password manager: a serverless alternative to Bitwarden.
 
-| 浅色 | 深色 |
+- The vault is a standard **KDBX 4** file (Argon2id + AES-256), compatible with KeePassXC / Strongbox / KeePassium / KeePassDX, so on mobile you can use those clients directly.
+- Sync across devices through your own cloud drive: put the vault in an iCloud Drive / Dropbox / OneDrive folder, or use a WebDAV server (e.g. Nutstore). Conflicts are merged per entry by timestamp.
+- Desktop app: Tauri 2 + React, for macOS / Windows / Linux.
+- Browser extension: Chrome / Edge / Brave / Firefox. It talks to the desktop app over Native Messaging; keys never leave the desktop process.
+- Imports Bitwarden exports (JSON / CSV / password-protected JSON), with TOTP support.
+
+| Light | Dark |
 |---|---|
 | ![](docs/screenshots/main-light.jpg) | ![](docs/screenshots/main-dark.jpg) |
 
-## 目录
+## Layout
 
-| 路径 | 内容 |
+| Path | Contents |
 |---|---|
-| `crates/vault-core` | 核心库：KDBX 读写、数据模型、导入、TOTP、URL 匹配、合并、WebDAV |
-| `crates/vault-cli` | 调试 CLI |
-| `crates/vault-ipc` | 桌面端与 native host 共用的 socket 命名与帧格式 |
-| `crates/native-host` | 浏览器 native messaging host（纯代理） |
-| `apps/desktop` | Tauri 桌面端（`src/` 前端，`src-tauri/` 后端） |
-| `apps/extension` | 浏览器插件 |
-| `docs/ARCHITECTURE.md` | 架构与接口契约 |
+| `crates/vault-core` | Core library: KDBX read/write, data model, import, TOTP, URL matching, merge, WebDAV |
+| `crates/vault-cli` | Debugging CLI |
+| `crates/vault-ipc` | Socket naming and frame format shared by the desktop app and the native host |
+| `crates/native-host` | Browser native messaging host (a pure proxy) |
+| `apps/desktop` | Tauri desktop app (`src/` frontend, `src-tauri/` backend) |
+| `apps/extension` | Browser extension |
+| `docs/ARCHITECTURE.md` | Architecture and interface contracts |
 
-## 使用
+## Usage
 
-### 桌面端
+### Desktop app
 
 ```bash
 cd apps/desktop && pnpm install && pnpm tauri:dev
 ```
 
-首次启动：选择 vault 的存放位置（本地目录、探测到的 iCloud Drive / Dropbox / OneDrive 目录，或坚果云 WebDAV），设置主密码。
-然后在 设置 → 导入 里选 Bitwarden 导出文件（`.json` / `.csv` / 密码保护的 `.json`）。
+On first launch, choose where the vault lives (a local folder, a detected iCloud Drive / Dropbox / OneDrive folder, or WebDAV) and set a master password.
+Then pick a Bitwarden export (`.json` / `.csv` / password-protected `.json`) under Settings → Import.
 
-打包成可安装的应用：`pnpm tauri:build`（产物在 `target/release/bundle/`；Windows 上生成 `.msi` 和 NSIS `-setup.exe`）。
+To build installable packages: `pnpm tauri:build` (output in `target/release/bundle/`; on Windows this produces an `.msi` and an NSIS `-setup.exe`). Build paths and the builder's user name are stripped from the release binaries.
 
-Windows 构建需要 Rust（MSVC 工具链）和装了"使用 C++ 的桌面开发"工作负载的 Visual Studio / Build Tools；WebView2 运行时 Windows 11 自带。
+Building on Windows requires Rust (MSVC toolchain) and Visual Studio / Build Tools with the "Desktop development with C++" workload. The WebView2 runtime ships with Windows 11.
 
-### 浏览器插件
+### Browser extension
 
-1. 桌面端 设置 → 浏览器集成，勾选你的浏览器，点"应用"（会写入 native messaging 清单）。
-2. `cd apps/extension && pnpm install && pnpm build`，然后在浏览器里加载未打包的扩展：
-   Chrome / Edge / Brave 用 `apps/extension/dist/chrome`，Firefox 用 `apps/extension/dist/firefox/manifest.json`。
-3. 点插件图标 → "连接 Vaultlet"，在桌面端确认配对。
+1. In the desktop app, open Settings → Browser integration, tick your browsers and click Apply (this installs the native messaging manifests).
+2. Run `cd apps/extension && pnpm install && pnpm build`, then load the unpacked extension in your browser:
+   `apps/extension/dist/chrome` for Chrome / Edge / Brave, `apps/extension/dist/firefox/manifest.json` for Firefox.
+3. Click the extension icon → "Connect to Vaultlet" and approve the pairing in the desktop app.
 
-### 命令行
+### Command line
 
 ```bash
 cargo run -p vault-cli -- import-bitwarden ~/Vaultlet.kdbx ~/Downloads/bitwarden_export.json
@@ -54,29 +56,29 @@ cargo run -p vault-cli -- ls ~/Vaultlet.kdbx
 cargo run -p vault-cli -- totp ~/Vaultlet.kdbx GitHub
 ```
 
-主密码通过 `--password`、环境变量 `VAULTLET_PASSWORD` 或交互提示给出。
+The master password comes from `--password`, the `VAULTLET_PASSWORD` environment variable, or an interactive prompt.
 
-### 把真实数据脱敏成测试数据
+### Turning real data into test data
 
 ```bash
-python3 -I scripts/sanitize-bitwarden.py <导出文件所在目录> <输出目录>
+python3 -I scripts/sanitize-bitwarden.py <export directory> <output directory>
 ```
 
-只用标准库、不联网；替换所有值但保留结构（类型、字段组合、URL 形状、文件夹层级、TOTP 格式）。
+Standard library only, no network access. Every value is replaced while the structure is kept (item types, field combinations, URL shapes, folder hierarchy, TOTP formats).
 
-## 开发
+## Development
 
 ```bash
-# 核心库与 CLI
+# Core library and CLI
 cargo test -p vault-core
 cargo run -p vault-cli -- --help
 
-# 桌面后端端到端测试（Tauri mock runtime，不开窗口）
+# Desktop backend end-to-end tests (Tauri mock runtime, no window)
 cargo test -p vaultlet
 
-# 桌面端
+# Desktop app
 cd apps/desktop && pnpm install && pnpm tauri dev
 
-# 浏览器插件
-cd apps/extension && pnpm install && pnpm build   # 产物在 dist/chrome 与 dist/firefox
+# Browser extension
+cd apps/extension && pnpm install && pnpm build   # output in dist/chrome and dist/firefox
 ```
