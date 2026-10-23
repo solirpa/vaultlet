@@ -35,7 +35,9 @@ cd apps/desktop && pnpm install && pnpm tauri:dev
 首次启动：选择 vault 的存放位置（本地目录、探测到的 iCloud Drive / Dropbox / OneDrive 目录，或坚果云 WebDAV），设置主密码。
 然后在 设置 → 导入 里选 Bitwarden 导出文件（`.json` / `.csv` / 密码保护的 `.json`）。
 
-打包成可安装的应用：`pnpm tauri:build`（产物在 `target/release/bundle/`）。
+打包成可安装的应用：`pnpm tauri:build`（产物在 `target/release/bundle/`；Windows 上生成 `.msi` 和 NSIS `-setup.exe`）。
+
+Windows 构建需要 Rust（MSVC 工具链）和装了"使用 C++ 的桌面开发"工作负载的 Visual Studio / Build Tools；WebView2 运行时 Windows 11 自带。
 
 ### 浏览器插件
 

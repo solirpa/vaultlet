@@ -27,7 +27,8 @@ fn invoke(webview: &tauri::WebviewWindow<tauri::test::MockRuntime>, cmd: &str, a
             cmd: cmd.into(),
             callback: CallbackFn(0),
             error: CallbackFn(1),
-            url: "tauri://localhost".parse().unwrap(),
+            // The origin the bundled frontend is served from, which the capability ACL checks.
+            url: if cfg!(windows) { "http://tauri.localhost" } else { "tauri://localhost" }.parse().unwrap(),
             body: InvokeBody::Json(args),
             headers: Default::default(),
             invoke_key: INVOKE_KEY.to_string(),
@@ -49,7 +50,11 @@ fn backend_end_to_end() {
     let root = tmp.path();
     std::env::set_var("VAULTLET_CONFIG_DIR", root.join("config"));
     std::env::set_var("VAULTLET_DATA_DIR", root.join("data"));
-    std::env::set_var("VAULTLET_SOCKET", root.join("v.sock"));
+    if cfg!(windows) {
+        std::env::set_var("VAULTLET_SOCKET", format!("vaultlet-test-{}", std::process::id()));
+    } else {
+        std::env::set_var("VAULTLET_SOCKET", root.join("v.sock"));
+    }
 
     let mut app = crate::configure(mock_builder()).build(mock_context(noop_assets())).unwrap();
     // The setup hook (state, IPC server, background tasks) runs on the first iteration.

@@ -9,6 +9,7 @@ use interprocess::local_socket::{GenericFilePath, ToFsName};
 use interprocess::local_socket::{GenericNamespaced, ToNsName};
 use interprocess::local_socket::Name;
 use std::io;
+#[cfg(unix)]
 use std::path::PathBuf;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -51,11 +52,27 @@ unsafe fn libc_getuid() -> u32 {
     getuid()
 }
 
+/// Named pipe name on Windows (`\\.\pipe\<name>`). Pipe names are machine-wide, so include
+/// the user to keep sessions of different users apart.
+#[cfg(windows)]
+pub fn pipe_name() -> String {
+    if let Some(p) = std::env::var_os("VAULTLET_SOCKET") {
+        return p.to_string_lossy().into_owned();
+    }
+    let user = std::env::var("USERNAME").unwrap_or_default();
+    let domain = std::env::var("USERDOMAIN").unwrap_or_default();
+    let tag: String = format!("{domain}.{user}")
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '-' { c } else { '_' })
+        .collect();
+    format!("vaultlet-{tag}")
+}
+
 /// Local socket name usable with `interprocess` on every platform.
 pub fn socket_name() -> io::Result<Name<'static>> {
     #[cfg(windows)]
     {
-        "vaultlet".to_ns_name::<GenericNamespaced>()
+        pipe_name().to_ns_name::<GenericNamespaced>()
     }
     #[cfg(unix)]
     {

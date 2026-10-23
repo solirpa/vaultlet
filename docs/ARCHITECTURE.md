@@ -236,7 +236,7 @@ invoke('pairing_respond', { requestId: string; approve: boolean }): Promise<void
 browser extension  <-- native messaging (stdio, 4 字节小端长度前缀 + JSON) -->  native-host  <-- 本地 socket --> desktop app
 ```
 
-- 本地 socket：macOS/Linux 为 `$XDG_RUNTIME_DIR/vaultlet.sock` 或 `~/Library/Application Support/com.vaultlet.app/vaultlet.sock`（mac）/ `/tmp/vaultlet-<uid>.sock`（linux 兜底）；Windows 为命名管道 `\\.\pipe\vaultlet`。用 `interprocess` crate。
+- 本地 socket：macOS/Linux 为 `$XDG_RUNTIME_DIR/vaultlet.sock` 或 `~/Library/Application Support/com.vaultlet.app/vaultlet.sock`（mac）/ `/tmp/vaultlet-<uid>.sock`（linux 兜底）；Windows 为按用户区分的命名管道 `\\.\pipe\vaultlet-<域>.<用户名>`（可用 `VAULTLET_SOCKET` 覆盖管道名）。用 `interprocess` crate。
 - socket 上的帧格式和 native messaging 一样（4 字节小端长度 + JSON），native-host 只做双向转发，桌面 app 没启动时 host 返回 `{ "error": "app-not-running" }`。
 - Native host manifest：
 

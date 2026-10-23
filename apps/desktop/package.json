@@ -10,7 +10,7 @@
     "typecheck": "tsc -b",
     "tauri": "tauri",
     "tauri:dev": "cargo build -p vaultlet-host --manifest-path ../../Cargo.toml && tauri dev",
-    "tauri:build": "bash ../../scripts/prepare-host.sh && tauri build"
+    "tauri:build": "node ../../scripts/build-release.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.4",

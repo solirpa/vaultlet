@@ -10,3 +10,6 @@ apps/desktop/src-tauri/gen/
 # Extension signing key: the id comes from the public key in the manifest; the private key
 # would let anyone ship an extension with our id, which the native host trusts.
 apps/extension/keys/key.pem
+
+# Distribution packages
+/release/

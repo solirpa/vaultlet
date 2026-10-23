@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { isMac } from '../lib/platform';
 import { cx } from '../lib/utils';
 
 /**
@@ -16,12 +17,12 @@ export function AuthShell({
   width?: string;
   header?: ReactNode;
   footer?: ReactNode;
-  /** Controls shown in the title-bar strip, right of the traffic lights. */
+  /** Controls shown in the title-bar strip, right of the macOS traffic lights. */
   toolbar?: ReactNode;
 }) {
   return (
     <div className="flex h-full flex-col bg-bg">
-      <div data-tauri-drag-region className="flex h-toolbar shrink-0 items-center pl-[96px]">
+      <div data-tauri-drag-region className={cx('flex h-toolbar shrink-0 items-center', isMac ? 'pl-[96px]' : 'pl-4')}>
         {toolbar}
       </div>
       <div className="flex flex-1 overflow-y-auto px-6 pb-toolbar">
