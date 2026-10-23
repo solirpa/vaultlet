@@ -1,0 +1,219 @@
+/**
+ * Tiny i18n for the popup and the in-page UI. Language follows
+ * navigator.language: zh* → Chinese, everything else → English.
+ * Missing Chinese strings fall back to English; unknown keys to the key itself.
+ */
+
+const en = {
+  // popup: states
+  'app.connecting': 'Connecting…',
+  'app.notRunning': 'Vaultlet is not running',
+  'app.hostMissing': 'Native messaging host not found. Enable browser integration for this browser in the Vaultlet app settings.',
+  'app.keyMismatch': 'The app knows this browser with a different key. Re-pair from the options page.',
+  'app.openApp': 'Open the Vaultlet desktop app, then retry.',
+  'app.retry': 'Retry',
+  'app.notPaired': 'Not connected to Vaultlet',
+  'app.pairHint': 'Pair this browser with the Vaultlet desktop app.',
+  'app.pairRejected': 'The request was rejected. Try again and approve it in the app.',
+  'app.connect': 'Connect to Vaultlet',
+  'app.approve': 'Approve in the Vaultlet app',
+  'app.approveHint': 'A confirmation dialog is waiting in the desktop app.',
+  'app.locked': 'Vault is locked',
+  'app.lockedNamed': '{name} is locked',
+  'app.unlock': 'Unlock',
+  'app.unlockInApp': 'Unlock in the Vaultlet app',
+  'app.pairingRejectedToast': 'Pairing was rejected in Vaultlet',
+  // popup: vault list
+  'vault.search': 'Search vault',
+  'vault.clearSearch': 'Clear search',
+  'vault.new': 'New item (opens Vaultlet)',
+  'vault.openedApp': 'Continue in the Vaultlet app',
+  'vault.lock': 'Lock',
+  'vault.settings': 'Settings',
+  'vault.suggestions': 'Autofill suggestions',
+  'vault.favorites': 'Favorites',
+  'vault.all': 'All items',
+  'vault.results': 'Results',
+  'vault.notWeb': 'Autofill suggestions appear on web pages.',
+  'vault.noMatch': 'No logins match this page.',
+  'vault.loading': 'Loading…',
+  'vault.empty': 'No items in this vault yet.',
+  'vault.noResults': 'No items match “{q}”',
+  'vault.fill': 'Fill',
+  'vault.more': 'More options',
+  'vault.copyUsername': 'Copy username',
+  'vault.copyPassword': 'Copy password',
+  'vault.copyTotp': 'Copy verification code',
+  'vault.noUsername': 'No username',
+  'vault.view': 'View item',
+  'vault.searchNeedsNewerApp': 'Search needs a newer Vaultlet app.',
+  // popup: item view
+  'item.back': 'Back',
+  'item.username': 'Username',
+  'item.password': 'Password',
+  'item.totp': 'Verification code (TOTP)',
+  'item.websites': 'Websites',
+  'item.website': 'Website',
+  'item.notes': 'Notes',
+  'item.show': 'Show password',
+  'item.hide': 'Hide password',
+  'item.copy': 'Copy',
+  'item.open': 'Open in new tab',
+  'item.fill': 'Fill',
+  'item.fillOn': 'Fill on {host}',
+  'item.notForSite': 'This login is not saved for {host}.',
+  'item.noFillTarget': 'Open a web page to fill this login.',
+  'item.favorite': 'Favorite',
+  // what was copied ("{what} copied")
+  'what.username': 'Username',
+  'what.password': 'Password',
+  'what.totp': 'Verification code',
+  'what.website': 'Website',
+  // toasts
+  'toast.copied': '{what} copied',
+  'toast.copyFailed': 'Copy failed',
+  'toast.noForm': 'No login form found on this page',
+  'toast.noFormCodeCopied': 'No login form found · code copied',
+  'toast.passwordCleared': 'Clipboard cleared',
+  // inline menu
+  'inline.showLogins': 'Vaultlet: show logins',
+  'inline.listLabel': 'Vaultlet logins',
+  'inline.noLogins': 'No logins for this site',
+  'inline.unlock': 'Unlock Vaultlet',
+  'inline.lockedSub': 'Vault is locked',
+  'inline.totpCopied': 'Verification code copied',
+  // save card
+  'save.saveFor': 'Save login for {host}?',
+  'save.updateFor': 'Update password for {user}?',
+  'save.save': 'Save',
+  'save.update': 'Update',
+  'save.notNow': 'Not now',
+  'save.never': 'Never for this site',
+  'save.close': 'Close',
+  'save.noUsername': 'No username',
+  'save.saved': 'Saved to Vaultlet',
+  'save.updated': 'Password updated',
+  'save.errLocked': 'Vaultlet is locked. Unlock it and try again.',
+  'save.errNotPaired': 'This browser is not connected to Vaultlet.',
+  'save.errNotFound': 'That login no longer exists in Vaultlet.',
+  'save.errExpired': 'This offer has expired.',
+  'save.errGeneric': 'Could not save to Vaultlet.',
+  'save.thisSite': 'this site',
+} as const;
+
+export type MsgKey = keyof typeof en;
+
+const zh: Partial<Record<MsgKey, string>> = {
+  'app.connecting': '正在连接…',
+  'app.notRunning': 'Vaultlet 未运行',
+  'app.hostMissing': '找不到本地消息主机。请在 Vaultlet 应用的设置中为此浏览器开启浏览器集成。',
+  'app.keyMismatch': '应用中登记的此浏览器密钥不一致，请在扩展选项页重新配对。',
+  'app.openApp': '请打开 Vaultlet 桌面应用后重试。',
+  'app.retry': '重试',
+  'app.notPaired': '尚未连接 Vaultlet',
+  'app.pairHint': '将此浏览器与 Vaultlet 桌面应用配对。',
+  'app.pairRejected': '请求被拒绝。请重试并在应用中批准。',
+  'app.connect': '连接 Vaultlet',
+  'app.approve': '请在 Vaultlet 应用中批准',
+  'app.approveHint': '桌面应用中有一个确认对话框正在等待。',
+  'app.locked': '密码库已锁定',
+  'app.lockedNamed': '{name} 已锁定',
+  'app.unlock': '解锁',
+  'app.unlockInApp': '请在 Vaultlet 应用中解锁',
+  'app.pairingRejectedToast': 'Vaultlet 拒绝了配对',
+  'vault.search': '搜索密码库',
+  'vault.clearSearch': '清除搜索',
+  'vault.new': '新建项目（打开 Vaultlet）',
+  'vault.openedApp': '请在 Vaultlet 应用中继续',
+  'vault.lock': '锁定',
+  'vault.settings': '设置',
+  'vault.suggestions': '自动填充建议',
+  'vault.favorites': '收藏',
+  'vault.all': '所有项目',
+  'vault.results': '搜索结果',
+  'vault.notWeb': '在网页上会显示自动填充建议。',
+  'vault.noMatch': '没有与此页面匹配的登录项。',
+  'vault.loading': '加载中…',
+  'vault.empty': '密码库中还没有项目。',
+  'vault.noResults': '没有与“{q}”匹配的项目',
+  'vault.fill': '填充',
+  'vault.more': '更多选项',
+  'vault.copyUsername': '复制用户名',
+  'vault.copyPassword': '复制密码',
+  'vault.copyTotp': '复制验证码',
+  'vault.noUsername': '无用户名',
+  'vault.view': '查看项目',
+  'vault.searchNeedsNewerApp': '搜索需要更新版本的 Vaultlet 应用。',
+  'item.back': '返回',
+  'item.username': '用户名',
+  'item.password': '密码',
+  'item.totp': '验证码 (TOTP)',
+  'item.websites': '网站',
+  'item.website': '网站',
+  'item.notes': '备注',
+  'item.show': '显示密码',
+  'item.hide': '隐藏密码',
+  'item.copy': '复制',
+  'item.open': '在新标签页中打开',
+  'item.fill': '填充',
+  'item.fillOn': '填充到 {host}',
+  'item.notForSite': '此登录项未保存 {host} 的网址。',
+  'item.noFillTarget': '打开一个网页后才能填充此登录项。',
+  'item.favorite': '收藏',
+  'what.username': '用户名',
+  'what.password': '密码',
+  'what.totp': '验证码',
+  'what.website': '网址',
+  'toast.copied': '已复制{what}',
+  'toast.copyFailed': '复制失败',
+  'toast.noForm': '此页面上没有找到登录表单',
+  'toast.noFormCodeCopied': '未找到登录表单 · 验证码已复制',
+  'toast.passwordCleared': '剪贴板已清除',
+  'inline.showLogins': 'Vaultlet：显示登录项',
+  'inline.listLabel': 'Vaultlet 登录项',
+  'inline.noLogins': '此网站没有登录项',
+  'inline.unlock': '解锁 Vaultlet',
+  'inline.lockedSub': '密码库已锁定',
+  'inline.totpCopied': '验证码已复制',
+  'save.saveFor': '保存 {host} 的登录信息？',
+  'save.updateFor': '更新 {user} 的密码？',
+  'save.save': '保存',
+  'save.update': '更新',
+  'save.notNow': '暂不',
+  'save.never': '此网站永不',
+  'save.close': '关闭',
+  'save.noUsername': '无用户名',
+  'save.saved': '已保存到 Vaultlet',
+  'save.updated': '密码已更新',
+  'save.errLocked': 'Vaultlet 已锁定，请解锁后重试。',
+  'save.errNotPaired': '此浏览器尚未连接 Vaultlet。',
+  'save.errNotFound': '该登录项已不存在于 Vaultlet 中。',
+  'save.errExpired': '此提示已过期。',
+  'save.errGeneric': '无法保存到 Vaultlet。',
+  'save.thisSite': '此网站',
+};
+
+export type Lang = 'en' | 'zh';
+
+const tables: Record<Lang, Partial<Record<MsgKey, string>>> = { en, zh };
+
+/** Keys that have a translation in `lang` (for tests / completeness checks). */
+export function translatedKeys(l: Lang): string[] {
+  return Object.keys(tables[l]);
+}
+
+export function pickLang(language: string | undefined | null): Lang {
+  return /^zh\b/i.test((language ?? '').trim()) ? 'zh' : 'en';
+}
+
+export function translate(lang: Lang, key: MsgKey, params?: Record<string, string | number>): string {
+  const raw = tables[lang][key] ?? en[key] ?? key;
+  if (!params) return raw;
+  return raw.replace(/\{(\w+)\}/g, (m, name: string) => (name in params ? String(params[name]) : m));
+}
+
+export const lang: Lang = pickLang(typeof navigator !== 'undefined' ? navigator.language : undefined);
+
+export function t(key: MsgKey, params?: Record<string, string | number>): string {
+  return translate(lang, key, params);
+}

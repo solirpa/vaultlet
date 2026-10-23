@@ -1,0 +1,16 @@
+[package]
+name = "vaultlet-host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Vaultlet browser native messaging host: proxies stdio frames to the running desktop app"
+
+[[bin]]
+name = "vaultlet-host"
+path = "src/main.rs"
+
+[dependencies]
+vault-ipc = { workspace = true }
+interprocess = { workspace = true }
+tokio = { workspace = true }
+serde_json = { workspace = true }

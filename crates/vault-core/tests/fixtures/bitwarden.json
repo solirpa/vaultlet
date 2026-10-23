@@ -1,0 +1,145 @@
+{
+  "encrypted": false,
+  "folders": [
+    { "id": "11111111-1111-4111-8111-111111111111", "name": "Work/Infra" },
+    { "id": "22222222-2222-4222-8222-222222222222", "name": "Personal" }
+  ],
+  "items": [
+    {
+      "id": "aaaaaaaa-0001-4000-8000-000000000001",
+      "organizationId": null,
+      "folderId": "11111111-1111-4111-8111-111111111111",
+      "type": 1,
+      "reprompt": 1,
+      "name": "GitHub",
+      "notes": "Recovery codes are in the Infra note.",
+      "favorite": true,
+      "fields": [
+        { "name": "PIN", "value": "1234", "type": 1 },
+        { "name": "Flag", "value": "true", "type": 2 },
+        { "name": "Plan", "value": "pro", "type": 0 }
+      ],
+      "login": {
+        "uris": [
+          { "match": null, "uri": "https://github.com/login" },
+          { "match": 0, "uri": "gist.github.com" }
+        ],
+        "username": "octocat@example.com",
+        "password": "current-password",
+        "totp": "otpauth://totp/GitHub:octocat?secret=JBSWY3DPEHPK3PXP&issuer=GitHub&algorithm=SHA1&digits=6&period=30"
+      },
+      "passwordHistory": [
+        { "lastUsedDate": "2024-03-01T00:00:00.000Z", "password": "second-password" },
+        { "lastUsedDate": "2024-02-01T00:00:00.000Z", "password": "first-password" }
+      ],
+      "creationDate": "2024-01-02T03:04:05.000Z",
+      "revisionDate": "2024-06-01T00:00:00.000Z",
+      "deletedDate": null,
+      "collectionIds": null
+    },
+    {
+      "id": "aaaaaaaa-0002-4000-8000-000000000002",
+      "folderId": "22222222-2222-4222-8222-222222222222",
+      "type": 3,
+      "reprompt": 0,
+      "name": "Visa",
+      "notes": null,
+      "favorite": false,
+      "card": {
+        "cardholderName": "Test Holder",
+        "brand": "Visa",
+        "number": "4111111111111111",
+        "expMonth": "12",
+        "expYear": "2030",
+        "code": "123"
+      },
+      "creationDate": "2024-01-02T03:04:05.000Z",
+      "revisionDate": "2024-01-02T03:04:05.000Z",
+      "deletedDate": null
+    },
+    {
+      "id": "aaaaaaaa-0003-4000-8000-000000000003",
+      "folderId": null,
+      "type": 4,
+      "reprompt": 0,
+      "name": "Passport",
+      "notes": null,
+      "favorite": false,
+      "identity": {
+        "title": "Mr",
+        "firstName": "Test",
+        "middleName": null,
+        "lastName": "User",
+        "address1": "1 Example St",
+        "address2": null,
+        "address3": null,
+        "city": "Shanghai",
+        "state": null,
+        "postalCode": "200000",
+        "country": "CN",
+        "company": "Example Ltd",
+        "email": "test@example.com",
+        "phone": "13800000000",
+        "ssn": null,
+        "username": "testuser",
+        "passportNumber": "E12345678",
+        "licenseNumber": null
+      },
+      "creationDate": "2024-01-02T03:04:05.000Z",
+      "revisionDate": "2024-01-02T03:04:05.000Z",
+      "deletedDate": null
+    },
+    {
+      "id": "aaaaaaaa-0004-4000-8000-000000000004",
+      "folderId": null,
+      "type": 2,
+      "reprompt": 0,
+      "name": "Router",
+      "notes": "admin / admin\nsecond line",
+      "favorite": false,
+      "secureNote": { "type": 0 },
+      "creationDate": "2024-01-02T03:04:05.000Z",
+      "revisionDate": "2024-01-02T03:04:05.000Z",
+      "deletedDate": "2024-07-01T00:00:00.000Z"
+    },
+    {
+      "id": "aaaaaaaa-0005-4000-8000-000000000005",
+      "folderId": null,
+      "type": 1,
+      "reprompt": 0,
+      "name": "Bare TOTP",
+      "notes": null,
+      "favorite": false,
+      "login": {
+        "uris": [{ "match": 3, "uri": "http://10.0.0.1:8080/admin" }],
+        "username": "root",
+        "password": "pw",
+        "totp": "jbsw y3dp ehpk 3pxp"
+      },
+      "creationDate": "2024-01-02T03:04:05.000Z",
+      "revisionDate": "2024-01-02T03:04:05.000Z",
+      "deletedDate": null
+    },
+    {
+      "id": "aaaaaaaa-0006-4000-8000-000000000006",
+      "folderId": null,
+      "type": 1,
+      "reprompt": 0,
+      "name": "Passkey site",
+      "notes": null,
+      "favorite": false,
+      "login": {
+        "uris": [{ "match": null, "uri": "androidapp://com.example.app" }, { "match": null, "uri": "https://passkey.example" }],
+        "username": "user@example.com",
+        "password": "",
+        "totp": null,
+        "fido2Credentials": [
+          { "credentialId": "00000000-0000-0000-0000-000000000000", "keyType": "public-key", "keyAlgorithm": "ECDSA", "keyCurve": "P-256", "keyValue": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAChRANCAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "rpId": "passkey.example", "userHandle": "dXNlci1oYW5kbGU", "userName": "user@example.com", "counter": "0", "rpName": "Example", "userDisplayName": "User", "discoverable": "true", "creationDate": "2024-01-02T03:04:05.000Z" }
+        ]
+      },
+      "creationDate": "2024-01-02T03:04:05.000Z",
+      "revisionDate": "2024-01-02T03:04:05.000Z",
+      "deletedDate": null
+    }
+  ]
+}

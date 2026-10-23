@@ -1,0 +1,12 @@
+[package]
+name = "vault-ipc"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Local socket naming and message framing shared by the Vaultlet desktop app and the native messaging host"
+
+[dependencies]
+interprocess = { workspace = true }
+tokio = { workspace = true }
+serde_json = { workspace = true }
+directories = "6"

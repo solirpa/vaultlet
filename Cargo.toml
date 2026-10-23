@@ -1,0 +1,33 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/vault-core",
+  "crates/vault-cli",
+  "crates/native-host",
+  "crates/vault-ipc",
+  "apps/desktop/src-tauri",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[workspace.dependencies]
+vault-core = { path = "crates/vault-core" }
+vault-ipc = { path = "crates/vault-ipc" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+anyhow = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+interprocess = { version = "2", features = ["tokio"] }
+
+# Argon2 / AES in unoptimized builds make every unlock and save take seconds; optimize
+# dependencies even in dev so `tauri dev` feels like the real thing.
+[profile.dev.package."*"]
+opt-level = 2

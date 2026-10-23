@@ -1,0 +1,18 @@
+[package]
+name = "vault-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Vaultlet command-line tool for scripting and debugging"
+
+[[bin]]
+name = "vaultlet-cli"
+path = "src/main.rs"
+
+[dependencies]
+vault-core = { workspace = true }
+anyhow = { workspace = true }
+clap = { version = "4", features = ["derive", "env"] }
+rpassword = "7"
+tokio = { workspace = true }
+uuid = { workspace = true }

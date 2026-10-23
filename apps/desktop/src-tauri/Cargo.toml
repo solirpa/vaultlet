@@ -1,0 +1,53 @@
+[package]
+name = "vaultlet"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Vaultlet desktop app"
+
+[lib]
+name = "vaultlet_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "vaultlet"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+vault-core = { workspace = true }
+vault-ipc = { workspace = true }
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+interprocess = { workspace = true }
+crypto_box = { version = "0.9", features = ["std"] }
+base64 = "0.22"
+rand = "0.8"
+keyring = "4"
+notify = "8"
+thiserror = { workspace = true }
+url = "2"
+psl = "2"
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "webpki-roots"] }
+
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
+tempfile = "3"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", features = ["NSWindow", "NSButton", "NSView", "NSResponder", "NSControl"] }
+objc2-foundation = { version = "0.3", features = ["NSGeometry"] }
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.55"
