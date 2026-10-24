@@ -57,6 +57,12 @@ pub fn join_url(base: &str, path: &str) -> String {
     out
 }
 
+/// "Not there" answers. Besides 404, 坚果云 replies 409 `AncestorsNotFound` when a parent
+/// directory of the requested path is missing too, e.g. before the first upload.
+fn is_missing(status: StatusCode) -> bool {
+    status == StatusCode::NOT_FOUND || status == StatusCode::CONFLICT
+}
+
 impl Client {
     pub fn new(base_url: &str, username: &str, password: &str) -> Result<Client> {
         let base = base_url.trim().to_string();
@@ -97,7 +103,7 @@ impl Client {
         let resp = r.send().await?;
         match resp.status() {
             StatusCode::NOT_MODIFIED => Ok(GetResult::NotModified),
-            StatusCode::NOT_FOUND => Ok(GetResult::NotFound),
+            s if is_missing(s) => Ok(GetResult::NotFound),
             s if s.is_success() => {
                 let etag = resp.headers().get(ETAG).and_then(|v| v.to_str().ok()).map(String::from);
                 let bytes = resp.bytes().await?.to_vec();
@@ -140,7 +146,7 @@ impl Client {
     pub async fn etag(&self, path: &str) -> Result<Option<String>> {
         let resp = self.req(Method::HEAD, path).send().await?;
         let status = resp.status();
-        if status == StatusCode::NOT_FOUND {
+        if is_missing(status) {
             return Err(Error::NotFound(path.to_string()));
         }
         if !status.is_success() {
@@ -156,7 +162,7 @@ impl Client {
             .send()
             .await?;
         match resp.status() {
-            StatusCode::NOT_FOUND => Ok(false),
+            s if is_missing(s) => Ok(false),
             s if s.is_success() => Ok(true),
             StatusCode::METHOD_NOT_ALLOWED => {
                 // Fall back to HEAD for servers without PROPFIND.
@@ -221,5 +227,107 @@ mod tests {
     fn rejects_non_http_urls() {
         assert!(Client::new("ftp://x", "u", "p").is_err());
         assert!(Client::new("https://dav.jianguoyun.com/dav/", "u", "p").is_ok());
+    }
+
+    /// A tiny WebDAV server that answers like 坚果云: 409 when a parent directory is missing,
+    /// 404 when only the target is.
+    async fn fake_jianguoyun() -> String {
+        use std::collections::{HashMap, HashSet};
+        use std::sync::{Arc, Mutex};
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        #[derive(Default)]
+        struct Fs {
+            dirs: HashSet<String>,
+            files: HashMap<String, Vec<u8>>,
+        }
+        let fs = Arc::new(Mutex::new(Fs::default()));
+        fs.lock().unwrap().dirs.insert(String::new());
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            loop {
+                let (mut sock, _) = listener.accept().await.unwrap();
+                let fs = fs.clone();
+                tokio::spawn(async move {
+                    let mut buf = Vec::new();
+                    let mut chunk = [0u8; 4096];
+                    let (head_len, body_len) = loop {
+                        let n = sock.read(&mut chunk).await.unwrap();
+                        if n == 0 {
+                            return;
+                        }
+                        buf.extend_from_slice(&chunk[..n]);
+                        if let Some(i) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                            let head = String::from_utf8_lossy(&buf[..i]).to_lowercase();
+                            let len = head
+                                .lines()
+                                .find_map(|l| l.strip_prefix("content-length:"))
+                                .map(|v| v.trim().parse::<usize>().unwrap())
+                                .unwrap_or(0);
+                            break (i + 4, len);
+                        }
+                    };
+                    while buf.len() < head_len + body_len {
+                        let n = sock.read(&mut chunk).await.unwrap();
+                        buf.extend_from_slice(&chunk[..n]);
+                    }
+                    let head = String::from_utf8_lossy(&buf[..head_len]).to_string();
+                    let mut first = head.lines().next().unwrap().split(' ');
+                    let method = first.next().unwrap().to_string();
+                    let raw = first.next().unwrap().trim_start_matches("/dav").trim_end_matches('/').to_string();
+                    let path = percent_encoding::percent_decode_str(&raw).decode_utf8_lossy().into_owned();
+                    let parent = path.rsplit_once('/').map(|(p, _)| p.to_string()).unwrap_or_default();
+                    let body = buf[head_len..head_len + body_len].to_vec();
+
+                    let (status, payload) = {
+                        let mut fs = fs.lock().unwrap();
+                        if !fs.dirs.contains(&parent) {
+                            ("409 Conflict", b"<s:exception>AncestorsNotFound</s:exception>".to_vec())
+                        } else {
+                            match method.as_str() {
+                                "PROPFIND" | "HEAD" if fs.dirs.contains(&path) || fs.files.contains_key(&path) => {
+                                    ("207 Multi-Status", Vec::new())
+                                }
+                                "GET" if fs.files.contains_key(&path) => ("200 OK", fs.files[&path].clone()),
+                                "MKCOL" => {
+                                    fs.dirs.insert(path);
+                                    ("201 Created", Vec::new())
+                                }
+                                "PUT" => {
+                                    fs.files.insert(path, body);
+                                    ("201 Created", Vec::new())
+                                }
+                                _ => ("404 Not Found", Vec::new()),
+                            }
+                        }
+                    };
+                    let resp = format!("HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", payload.len());
+                    let _ = sock.write_all(resp.as_bytes()).await;
+                    let _ = sock.write_all(&payload).await;
+                });
+            }
+        });
+        format!("http://{addr}/dav/")
+    }
+
+    #[tokio::test]
+    async fn first_upload_into_missing_folder() {
+        let client = Client::new(&fake_jianguoyun().await, "u", "p").unwrap();
+        let remote = "/我的坚果云/Vaultlet/Vaultlet.kdbx";
+
+        // Parent folders missing: the server says 409, which still means "not there".
+        assert!(!client.exists(remote).await.unwrap());
+        assert!(matches!(client.get(remote, None).await.unwrap(), GetResult::NotFound));
+
+        client.ensure_parents(remote).await.unwrap();
+        assert!(!client.exists(remote).await.unwrap()); // now a plain 404
+        client.put(remote, b"kdbx".to_vec(), None).await.unwrap();
+
+        assert!(client.exists(remote).await.unwrap());
+        match client.get(remote, None).await.unwrap() {
+            GetResult::Modified { bytes, .. } => assert_eq!(bytes, b"kdbx"),
+            _ => panic!("expected the uploaded file"),
+        }
     }
 }
