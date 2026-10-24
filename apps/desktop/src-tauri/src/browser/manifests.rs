@@ -89,6 +89,13 @@ fn manifest_json(family: Family, host: &std::path::Path) -> String {
     serde_json::to_string_pretty(&m).unwrap_or_default()
 }
 
+/// `VAULTLET_BROWSER_ROOT` redirects manifests (and, on Windows, the registry keys under
+/// `HKCU\Software\VaultletTest`) away from the real browser setup. Tests must set it: an
+/// apply with browsers disabled would otherwise unregister the developer's own Vaultlet.
+fn test_root() -> Option<PathBuf> {
+    std::env::var_os("VAULTLET_BROWSER_ROOT").map(PathBuf::from)
+}
+
 fn home() -> Option<PathBuf> {
     std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).map(PathBuf::from)
 }
@@ -96,6 +103,9 @@ fn home() -> Option<PathBuf> {
 /// Where the manifest file goes for this browser on this OS.
 fn manifest_path(b: &Browser) -> Option<PathBuf> {
     let file = format!("{}.json", vault_ipc::HOST_NAME);
+    if let Some(root) = test_root() {
+        return Some(root.join(b.key).join(file));
+    }
     #[cfg(target_os = "macos")]
     {
         return Some(home()?.join("Library/Application Support").join(b.mac).join(file));
@@ -118,7 +128,8 @@ fn registry_set(b: &Browser, manifest: Option<&std::path::Path>) -> std::io::Res
     use winreg::enums::HKEY_CURRENT_USER;
     use winreg::RegKey;
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let path = format!(r"Software\{}\{}", b.win, vault_ipc::HOST_NAME);
+    let base = if test_root().is_some() { r"Software\VaultletTest" } else { "Software" };
+    let path = format!(r"{base}\{}\{}", b.win, vault_ipc::HOST_NAME);
     match manifest {
         Some(m) => {
             let (key, _) = hkcu.create_subkey(&path)?;

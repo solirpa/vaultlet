@@ -52,6 +52,9 @@ fn backend_end_to_end() {
     let root = tmp.path();
     std::env::set_var("VAULTLET_CONFIG_DIR", root.join("config"));
     std::env::set_var("VAULTLET_DATA_DIR", root.join("data"));
+    // Never touch the real browser registrations of the machine running the tests.
+    std::env::set_var("VAULTLET_BROWSER_ROOT", root.join("browsers"));
+    std::env::set_var("VAULTLET_HOST_PATH", std::env::current_exe().unwrap());
     if cfg!(windows) {
         std::env::set_var("VAULTLET_SOCKET", format!("vaultlet-test-{}", std::process::id()));
     } else {
@@ -155,9 +158,36 @@ fn backend_end_to_end() {
     assert_eq!(sync["state"], "idle");
     assert!(sync["lastSync"].is_string());
     ok(inv("cloud_folders_detect", json!({})));
+    // Browser integration: enabling Chrome writes its manifest (and registry key on Windows)
+    // under VAULTLET_BROWSER_ROOT; disabling removes them again.
+    let chrome_manifest = root.join("browsers").join("chrome").join("com.vaultlet.host.json");
+    let mut settings = ok(inv("settings_get", json!({})));
+    settings["browserIntegration"]["chrome"] = json!(true);
+    ok(inv("settings_set", json!({ "settings": settings })));
     let apply = ok(inv("browser_integration_apply", json!({})));
     assert_eq!(apply.as_array().unwrap().len(), 5);
-    assert!(apply.as_array().unwrap().iter().all(|r| r["ok"] == true));
+    assert!(apply.as_array().unwrap().iter().all(|r| r["ok"] == true), "{apply}");
+    let manifest: Value = serde_json::from_str(&std::fs::read_to_string(&chrome_manifest).unwrap()).unwrap();
+    assert_eq!(manifest["name"], "com.vaultlet.host");
+    assert_eq!(manifest["path"].as_str().unwrap(), std::env::current_exe().unwrap().to_string_lossy());
+    #[cfg(windows)]
+    let test_key = r"Software\VaultletTest\Google\Chrome\NativeMessagingHosts\com.vaultlet.host";
+    #[cfg(windows)]
+    {
+        let hkcu = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER);
+        let v: String = hkcu.open_subkey(test_key).unwrap().get_value("").unwrap();
+        assert_eq!(v, chrome_manifest.to_string_lossy());
+    }
+    settings["browserIntegration"]["chrome"] = json!(false);
+    ok(inv("settings_set", json!({ "settings": settings })));
+    ok(inv("browser_integration_apply", json!({})));
+    assert!(!chrome_manifest.exists());
+    #[cfg(windows)]
+    {
+        let hkcu = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER);
+        assert!(hkcu.open_subkey(test_key).is_err());
+        let _ = hkcu.delete_subkey_all(r"Software\VaultletTest");
+    }
     let wd = ok(inv("webdav_test", json!({ "url": "ftp://nope", "username": "u", "password": "p" })));
     assert_eq!(wd["ok"], false);
 
