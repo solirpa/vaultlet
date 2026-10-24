@@ -5629,7 +5629,7 @@ checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 
 [[package]]
 name = "vault-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -5641,7 +5641,7 @@ dependencies = [
 
 [[package]]
 name = "vault-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "aes",
  "base32",
@@ -5675,7 +5675,7 @@ dependencies = [
 
 [[package]]
 name = "vault-ipc"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "directories",
  "interprocess",
@@ -5685,7 +5685,7 @@ dependencies = [
 
 [[package]]
 name = "vaultlet"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -5721,7 +5721,7 @@ dependencies = [
 
 [[package]]
 name = "vaultlet-host"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "interprocess",
  "serde_json",

@@ -1,7 +1,7 @@
 // Manifest templates for Chromium-family browsers and Firefox.
 import { publicKeyBase64 } from './extension-id.mjs';
 
-const VERSION = '0.1.0';
+const VERSION = '0.1.1';
 
 const common = {
   manifest_version: 3,
