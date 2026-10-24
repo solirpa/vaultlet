@@ -57,7 +57,10 @@ export type Action =
   | 'get-icon'
   | 'passkey-list'
   | 'passkey-sign'
-  | 'passkey-create';
+  | 'passkey-create'
+  | 'item-save'
+  | 'item-trash'
+  | 'generate-password';
 
 export type Request =
   | { id: string; action: 'associate' }
@@ -74,7 +77,35 @@ export type Request =
   | ({ id: string; action: 'save-login' } & SaveLoginInput)
   | { id: string; action: 'passkey-list'; origin: string; rpId: string; allowCredentials?: string[] }
   | { id: string; action: 'passkey-sign'; origin: string; rpId: string; entryId: string; clientDataHash: string }
-  | ({ id: string; action: 'passkey-create' } & PasskeyCreateInput);
+  | ({ id: string; action: 'passkey-create' } & PasskeyCreateInput)
+  | { id: string; action: 'item-save'; entry: ItemSaveInput }
+  | { id: string; action: 'item-trash'; entryId: string }
+  | ({ id: string; action: 'generate-password' } & GeneratorOptions);
+
+/**
+ * `item-save`: create a login (no `id`) or change one. Only the fields present are changed;
+ * custom fields, passkeys, folder and tags are kept. `totp`: omitted/null keeps the secret
+ * (the extension never sees it), "" removes it, anything else must be a base32 secret or an
+ * otpauth:// URI (`code: "invalid-totp"`).
+ */
+export interface ItemSaveInput {
+  id?: string;
+  title: string;
+  username?: string;
+  password?: string;
+  urls?: string[];
+  notes?: string;
+  favorite?: boolean;
+  totp?: string | null;
+}
+
+export interface GeneratorOptions {
+  length: number;
+  upper: boolean;
+  lower: boolean;
+  digits: boolean;
+  symbols: boolean;
+}
 
 /**
  * `passkey-create`: the app generates the key pair and stores the private key in the vault,
@@ -218,6 +249,13 @@ export interface PasskeyCreateResponse extends OkResponse {
   publicKeyAlgorithm: number;
 }
 
+export interface ItemSaveResponse extends OkResponse {
+  entryId: string;
+}
+export interface GeneratePasswordResponse extends OkResponse {
+  password: string;
+}
+
 export type Response =
   | OkResponse
   | ErrResponse
@@ -231,7 +269,9 @@ export type Response =
   | SaveLoginResponse
   | PasskeyListResponse
   | PasskeySignResponse
-  | PasskeyCreateResponse;
+  | PasskeyCreateResponse
+  | ItemSaveResponse
+  | GeneratePasswordResponse;
 
 export type PushEventName = 'locked' | 'unlocked' | 'items-changed';
 export interface PushEvent {

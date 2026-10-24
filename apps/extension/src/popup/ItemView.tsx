@@ -3,7 +3,7 @@
  * kept in state except while revealed; copy / reveal / fill fetch it on demand.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Copy, ExternalLink, Eye, EyeOff, Star } from 'lucide-react';
+import { ArrowLeft, Copy, ExternalLink, Eye, EyeOff, Pencil, Star } from 'lucide-react';
 import { ext, invoke } from '../shared/browser';
 import { t } from '../shared/i18n';
 import type { EntryDetail, LoginSummary } from '../shared/protocol';
@@ -26,6 +26,7 @@ export function ItemView({
   matchesTab,
   reloadKey,
   onBack,
+  onEdit,
   onFill,
   onCopy,
   onCopyPassword,
@@ -35,6 +36,7 @@ export function ItemView({
   matchesTab: boolean;
   reloadKey: number;
   onBack: () => void;
+  onEdit: () => void;
   onFill: (entry: LoginSummary) => void;
   onCopy: (what: string, value: string) => void;
   onCopyPassword: (entryId: string) => void;
@@ -89,7 +91,10 @@ export function ItemView({
         <button className="icon-btn h-8 w-8 text-muted" onClick={onBack} title={t('item.back')} autoFocus>
           <ArrowLeft className="h-[18px] w-[18px]" />
         </button>
-        <span className="truncate text-[13px] font-semibold">{t('vault.view')}</span>
+        <span className="flex-1 truncate text-[13px] font-semibold">{t('vault.view')}</span>
+        <button className="icon-btn h-8 w-8 text-muted" onClick={onEdit} title={t('item.edit')}>
+          <Pencil className="h-4 w-4" />
+        </button>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">

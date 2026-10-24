@@ -8,7 +8,16 @@
  * sender rather than from arguments, so a compromised frame cannot ask for
  * another site's logins.
  */
-import type { EntryDetail, LoginEntry, LoginSummary, PushEventName, SaveLoginInput, SaveLoginResult } from './protocol';
+import type {
+  EntryDetail,
+  GeneratorOptions,
+  ItemSaveInput,
+  LoginEntry,
+  LoginSummary,
+  PushEventName,
+  SaveLoginInput,
+  SaveLoginResult,
+} from './protocol';
 import type { PageCreateRequest, PageCreateResult, PageGetRequest, PageGetResult } from './webauthn';
 import { sendRuntimeMessage } from './browser';
 
@@ -82,6 +91,11 @@ export interface PageRpcMethods {
   fillEntry: { args: [tabId: number, entryId: string, notice?: string]; result: { filled: FillOutcome } };
   /** forget keys + clientId; next connect generates a fresh identity */
   resetPairing: { args: []; result: ExtensionState };
+  /** popup editor: create or change a login; returns its id */
+  saveItem: { args: [entry: ItemSaveInput]; result: string };
+  /** popup editor: move to the trash */
+  trashItem: { args: [entryId: string]; result: void };
+  generatePassword: { args: [opts: GeneratorOptions]; result: string };
   /** passkey confirmation window: what is being asked (re-lists passkeys while the vault is locked) */
   passkeyPending: { args: [requestId: string]; result: PasskeyPrompt | null };
   /** passkey confirmation window: the user's choice */

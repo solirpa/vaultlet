@@ -444,6 +444,53 @@ fn backend_end_to_end() {
             assert!(saved.tags.contains(&"Passkey".to_string()));
         }
 
+        // Editing from the popup: create a login.
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "e1", "action": "item-save", "entry": { "title": "Popup login", "username": "pop", "password": "pw1", "urls": ["https://popup.example", "  "], "totp": "JBSWY3DPEHPK3PXP", "notes": "n", "favorite": true } })).await;
+        assert_eq!(r["ok"], true, "{r}");
+        let popup_id = r["entryId"].as_str().unwrap().to_string();
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "e2", "action": "get-entry", "entryId": popup_id })).await;
+        let e = &r["entry"];
+        assert_eq!((e["title"].as_str(), e["username"].as_str(), e["password"].as_str()), (Some("Popup login"), Some("pop"), Some("pw1")));
+        assert_eq!(e["urls"], json!(["https://popup.example"]));
+        assert_eq!((e["totp"].as_bool(), e["favorite"].as_bool(), e["notes"].as_str()), (Some(true), Some(true), Some("n")));
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "e3", "action": "get-totp", "entryId": popup_id })).await;
+        assert_eq!(r["code"].as_str().unwrap().len(), 6);
+        // Editing an entry that holds a passkey keeps the passkey (and anything not sent).
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "e4", "action": "item-save", "entry": { "id": created_entry, "title": "Example renamed", "password": "new-pw" } })).await;
+        assert_eq!(r["ok"], true, "{r}");
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "e5", "action": "passkey-list", "origin": "https://login.example.com", "rpId": "example.com" })).await;
+        assert_eq!(r["entries"][0]["title"], "Example renamed");
+        assert_eq!(r["entries"][0]["username"], "alice@example.com");
+        // TOTP: "" removes it, junk is refused, title is required, unknown ids are refused.
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "e6", "action": "item-save", "entry": { "id": popup_id, "title": "Popup login", "totp": "not base32 !!" } })).await;
+        assert_eq!(r["code"], "invalid-totp");
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "e7", "action": "item-save", "entry": { "id": popup_id, "title": "Popup login", "totp": "" } })).await;
+        assert_eq!(r["ok"], true);
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "e8", "action": "get-entry", "entryId": popup_id })).await;
+        assert_eq!(r["entry"]["totp"], false);
+        assert_eq!(r["entry"]["password"], "pw1", "a save without password keeps it");
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "e9", "action": "item-save", "entry": { "id": popup_id, "title": "  " } })).await;
+        assert_eq!(r["code"], "invalid-argument");
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "e10", "action": "item-save", "entry": { "id": "00000000-0000-0000-0000-000000000000", "title": "x" } })).await;
+        assert_eq!(r["code"], "not-found");
+        // Trash: gone from the browser, restorable in the app.
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "e11", "action": "item-trash", "entryId": popup_id })).await;
+        assert_eq!(r["ok"], true);
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "e12", "action": "get-entry", "entryId": popup_id })).await;
+        assert_eq!(r["code"], "not-found");
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "e13", "action": "item-trash", "entryId": popup_id })).await;
+        assert_eq!(r["code"], "not-found");
+        {
+            let state = handle.state::<AppState>();
+            let guard = state.vault.lock().await;
+            assert!(guard.as_ref().unwrap().vault.item(Uuid::parse_str(&popup_id).unwrap()).unwrap().deleted);
+        }
+        // Password generator.
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "g1", "action": "generate-password", "length": 32, "symbols": false })).await;
+        let p = r["password"].as_str().unwrap();
+        assert_eq!(p.len(), 32);
+        assert!(p.chars().all(|c| c.is_ascii_alphanumeric()), "{p}");
+
         // A slow WebDAV server must not stall the browser: sync talks to the network without
         // holding the vault lock.
         {

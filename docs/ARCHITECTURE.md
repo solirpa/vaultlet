@@ -279,6 +279,9 @@ Chrome 插件 ID 要固定：manifest 里带 `key`（公钥 base64），仓库�
 | `{ id, action:"passkey-sign", origin, rpId, entryId, clientDataHash }` | 同样校验 rpId，且条目的 RP 必须等于 rpId；用 ES256 签 `authenticatorData ‖ clientDataHash` → `{ id, ok:true, credentialId, authenticatorData, signature, userHandle }`（均为 base64url）。私钥不离开桌面端 |
 
 | `{ id, action:"passkey-create", origin, rpId, rpName?, userId, userName, entryId?, excludeCredentials? }` | 同样校验 rpId；`excludeCredentials` 中已有凭据在库里 → `code:"excluded"`；`entryId` 指向的条目已有通行密钥 → `code:"already-exists"`（绝不覆盖）。否则生成 P-256 密钥对，私钥存入该条目或新建的登录条目并写盘 → `{ id, ok:true, entryId, credentialId, authenticatorData, attestationObject, publicKey, publicKeyAlgorithm:-7 }`（"none" 证明，AAGUID 全零，`publicKey` 为 SPKI DER） |
+| `{ id, action:"item-save", entry:{ id?, title, username?, password?, urls?, notes?, favorite?, totp? } }` | 无 `id` 新建登录条目，有 `id` 修改该登录条目；只改传来的字段，自定义字段、通行密钥、文件夹、标签保持不变，旧版本进历史。`totp`：不传 / null 保持（扩展拿不到密钥），`""` 移除，其它须为 base32 密钥或 otpauth:// URI，否则 `code:"invalid-totp"` → `{ id, ok:true, entryId }` |
+| `{ id, action:"item-trash", entryId }` | 移到回收站（可在桌面端恢复）→ `{ id, ok:true }` |
+| `{ id, action:"generate-password", length, upper, lower, digits, symbols }` | 桌面端生成（长度 4–128）→ `{ id, ok:true, password }` |
 
 `get-logins` 的条目另带 `passkey: bool`，表示该条目已有通行密钥。
 

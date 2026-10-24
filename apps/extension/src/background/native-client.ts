@@ -24,6 +24,10 @@ import {
   type HelloRequest,
   type HelloResponse,
   type LoginEntry,
+  type GeneratePasswordResponse,
+  type GeneratorOptions,
+  type ItemSaveInput,
+  type ItemSaveResponse,
   type PasskeyCandidate,
   type PasskeyCreateInput,
   type PasskeyCreateResponse,
@@ -485,6 +489,22 @@ export class NativeClient {
       username: e.username ?? '',
       credentialId: e.credentialId,
     }));
+  }
+
+  /** Create a login or change one (see ItemSaveInput); returns its id. */
+  async saveItem(entry: ItemSaveInput): Promise<string> {
+    const r = await this.call<ItemSaveResponse>({ action: 'item-save', entry });
+    return r.entryId;
+  }
+
+  /** Move an item to the trash (restorable in the app). */
+  async trashItem(entryId: string): Promise<void> {
+    await this.call({ action: 'item-trash', entryId });
+  }
+
+  async generatePassword(opts: GeneratorOptions): Promise<string> {
+    const r = await this.call<GeneratePasswordResponse>({ action: 'generate-password', ...opts });
+    return r.password;
   }
 
   /** Have the app create a passkey and store it in the vault. */

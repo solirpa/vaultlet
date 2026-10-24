@@ -251,6 +251,15 @@ fn seal_envelope(sbox: &SalsaBox, client_id: &str, msg: &Value) -> Option<Vec<u8
     Some(json!({ "clientId": client_id, "nonce": B64.encode(nonce), "payload": B64.encode(ct) }).to_string().into_bytes())
 }
 
+/// After a change made from the browser: refresh the UI and other browsers, and sync.
+async fn items_changed<R: Runtime>(app: &AppHandle<R>, state: &AppState) {
+    let _ = app.emit("items:changed", ());
+    state.push(PushEvent::ItemsChanged);
+    if state.settings.lock().await.vault.mode == crate::settings::SyncMode::Webdav {
+        crate::store::sync_in_background(app);
+    }
+}
+
 fn err(id: &Value, code: &str, message: &str) -> Value {
     json!({ "id": id, "ok": false, "code": code, "message": message })
 }
@@ -631,6 +640,106 @@ async fn handle_request<R: Runtime>(app: &AppHandle<R>, session: &mut Session, r
                         "publicKeyAlgorithm": passkey::COSE_ES256,
                     })
                 }
+                Err(e) => err(&id, e.code(), &e.to_string()),
+            }
+        }
+        // Editing from the popup. Only the fields sent are changed; custom fields, passkeys,
+        // folder and tags stay as they are, and the previous version goes to the item history.
+        "item-save" => {
+            let e = req.get("entry").cloned().unwrap_or(Value::Null);
+            let text = |k: &str| e.get(k).and_then(Value::as_str).map(str::to_string);
+            let title = text("title").map(|t| t.trim().to_string()).unwrap_or_default();
+            if title.is_empty() {
+                return err(&id, "invalid-argument", "title is empty");
+            }
+            let entry_id = text("id").filter(|s| !s.is_empty());
+            state.touch_activity().await;
+            let result = {
+                let mut guard = state.vault.lock().await;
+                let Some(u) = guard.as_mut() else {
+                    return err(&id, "locked", "vault is locked");
+                };
+                let mut item = match entry_id {
+                    Some(eid) => {
+                        let found = Uuid::parse_str(&eid).ok().and_then(|uuid| u.vault.item(uuid));
+                        match found.filter(|i| !i.deleted && i.kind == vault_core::ItemKind::Login) {
+                            Some(i) => i,
+                            None => return err(&id, "not-found", "no such login"),
+                        }
+                    }
+                    None => vault_core::Item::new(vault_core::ItemKind::Login, title.clone()),
+                };
+                item.title = title;
+                if let Some(v) = text("username") {
+                    item.username = v;
+                }
+                if let Some(v) = text("password") {
+                    item.password = v;
+                }
+                if let Some(urls) = e.get("urls").and_then(Value::as_array) {
+                    item.urls = urls.iter().filter_map(Value::as_str).map(str::trim).filter(|u| !u.is_empty()).map(String::from).collect();
+                }
+                if let Some(v) = text("notes") {
+                    item.notes = v;
+                }
+                if let Some(v) = e.get("favorite").and_then(Value::as_bool) {
+                    item.favorite = v;
+                }
+                // TOTP: absent / null keeps it (the extension never sees the secret), "" removes it.
+                match e.get("totp").and_then(Value::as_str).map(str::trim) {
+                    None => {}
+                    Some("") => item.totp = None,
+                    Some(s) => match vault_core::totp::normalize_to_uri(s, &item.title) {
+                        Ok(uri) => item.totp = Some(uri),
+                        Err(_) => return err(&id, "invalid-totp", "not a TOTP secret or otpauth:// URI"),
+                    },
+                }
+                match u.vault.upsert_item(item) {
+                    Ok(saved) => crate::store::write_vault(u).await.map(|()| saved.id),
+                    Err(e) => Err(e),
+                }
+            };
+            match result {
+                Ok(entry) => {
+                    items_changed(app, &state).await;
+                    json!({ "id": id, "ok": true, "entryId": entry.to_string() })
+                }
+                Err(e) => err(&id, e.code(), &e.to_string()),
+            }
+        }
+        // Move to the trash (restorable from the desktop app).
+        "item-trash" => {
+            let entry_id = req.get("entryId").and_then(Value::as_str).unwrap_or("");
+            let Ok(uuid) = Uuid::parse_str(entry_id) else {
+                return err(&id, "not-found", "bad entry id");
+            };
+            state.touch_activity().await;
+            let result = {
+                let mut guard = state.vault.lock().await;
+                let Some(u) = guard.as_mut() else {
+                    return err(&id, "locked", "vault is locked");
+                };
+                if !u.vault.item(uuid).is_some_and(|i| !i.deleted) {
+                    return err(&id, "not-found", "no such entry");
+                }
+                match u.vault.delete_item(uuid) {
+                    Ok(()) => crate::store::write_vault(u).await,
+                    Err(e) => Err(e),
+                }
+            };
+            match result {
+                Ok(()) => {
+                    items_changed(app, &state).await;
+                    json!({ "id": id, "ok": true })
+                }
+                Err(e) => err(&id, e.code(), &e.to_string()),
+            }
+        }
+        "generate-password" => {
+            let length = req.get("length").and_then(Value::as_u64).unwrap_or(20).clamp(4, 128) as usize;
+            let flag = |k: &str, default: bool| req.get(k).and_then(Value::as_bool).unwrap_or(default);
+            match vault_core::password_generate(length, flag("upper", true), flag("lower", true), flag("digits", true), flag("symbols", true)) {
+                Ok(p) => json!({ "id": id, "ok": true, "password": p }),
                 Err(e) => err(&id, e.code(), &e.to_string()),
             }
         }

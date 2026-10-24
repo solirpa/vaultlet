@@ -435,6 +435,18 @@ const pageHandlers: PageHandlers = {
     badges.clear();
     return snapshot();
   },
+  async saveItem(entry) {
+    const id = await client.saveItem(entry);
+    badges.clear();
+    void refreshActiveBadge();
+    return id;
+  },
+  async trashItem(entryId) {
+    await client.trashItem(entryId);
+    badges.clear();
+    void refreshActiveBadge();
+  },
+  generatePassword: (opts) => client.generatePassword(opts),
   passkeyPending: (requestId) => passkeys.prompt(requestId),
   passkeyAnswer: (requestId, answer) => passkeys.answer(requestId, answer),
 };

@@ -13,6 +13,7 @@ import type { LoginSummary } from '../shared/protocol';
 import { RpcError, rpc } from '../shared/rpc';
 import { useExtensionState } from '../shared/useExtensionState';
 import { copy } from './clipboard';
+import { ItemEditor } from './ItemEditor';
 import { ItemView, type FillTarget } from './ItemView';
 import { buildSearchItems, buildVaultItems, displayHost, type ListItem, type SectionId } from './sections';
 import { Centered, StateIcon, entryTitle } from './ui';
@@ -70,7 +71,12 @@ export function App() {
   const [reloadKey, setReloadKey] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [pairing, setPairing] = useState<'idle' | 'waiting' | 'rejected'>('idle');
-  const [page, setPage] = useState<{ kind: 'list' } | { kind: 'item'; entry: LoginSummary }>({ kind: 'list' });
+  const [page, setPage] = useState<
+    | { kind: 'list' }
+    | { kind: 'item'; entry: LoginSummary }
+    /** `from` = the item view to return to; none = back to the list */
+    | { kind: 'edit'; entryId?: string; from?: LoginSummary }
+  >({ kind: 'list' });
   const [menu, setMenu] = useState<RowMenuState | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
   const listScroll = useRef(0);
@@ -264,6 +270,17 @@ export function App() {
     window.setTimeout(() => searchRef.current?.focus(), 0);
   }, []);
 
+  /** New logins start from the current site: its host as the name, its origin as the website. */
+  const newLoginDefaults = useMemo(() => {
+    if (!siteUrl) return { title: '', url: '' };
+    try {
+      const u = new URL(siteUrl);
+      return { title: u.hostname.replace(/^www\./, ''), url: u.origin };
+    } catch {
+      return { title: '', url: '' };
+    }
+  }, [siteUrl]);
+
   const firstRow = items.find((i): i is Extract<ListItem, { kind: 'row' }> => i.kind === 'row');
 
   // ---- render ---------------------------------------------------------------
@@ -336,13 +353,30 @@ export function App() {
 
   return (
     <div ref={rootRef} className="relative flex h-[560px] w-[380px] flex-col overflow-hidden bg-surface">
-      {unlocked && page.kind === 'item' ? (
+      {unlocked && page.kind === 'edit' ? (
+        <ItemEditor
+          entryId={page.entryId}
+          defaults={newLoginDefaults}
+          onCancel={() => (page.from ? setPage({ kind: 'item', entry: page.from }) : backToList())}
+          onSaved={(id, f) => {
+            setReloadKey((k) => k + 1);
+            showToast(t('toast.saved'));
+            setPage({ kind: 'item', entry: { id, title: f.title, username: f.username, url: f.url, totp: f.totp, favorite: f.favorite } });
+          }}
+          onTrashed={() => {
+            setReloadKey((k) => k + 1);
+            showToast(t('toast.trashed'));
+            backToList();
+          }}
+        />
+      ) : unlocked && page.kind === 'item' ? (
         <ItemView
           summary={page.entry}
           target={target}
           matchesTab={suggestedIds.has(page.entry.id)}
           reloadKey={reloadKey}
           onBack={backToList}
+          onEdit={() => setPage({ kind: 'edit', entryId: page.entry.id, from: page.entry })}
           onFill={(e) => void fill(e)}
           onCopy={(what, value) => void copyValue(what, value)}
           onCopyPassword={(id) => void copyPassword(id)}
@@ -390,11 +424,10 @@ export function App() {
             <button
               className="icon-btn h-9 w-9 text-muted"
               title={t('vault.new')}
-              onClick={() =>
-                rpc('unlockRequest')
-                  .then(() => showToast(t('vault.openedApp')))
-                  .catch((e) => showToast(errorMessage(e)))
-              }
+              onClick={() => {
+                setMenu(null);
+                setPage({ kind: 'edit' });
+              }}
             >
               <Plus className="h-[18px] w-[18px]" />
             </button>
