@@ -81,6 +81,122 @@ impl Passkey {
     }
 }
 
+/// The account a new passkey is created for (`PublicKeyCredentialUserEntity`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NewPasskeyUser {
+    /// user handle chosen by the site
+    pub id: Vec<u8>,
+    pub name: String,
+}
+
+/// A freshly created passkey plus what the site gets back from `navigator.credentials.create()`.
+#[derive(Debug, Clone)]
+pub struct Registration {
+    /// `KPEX_PASSKEY_*` fields to store on the item
+    pub fields: Vec<crate::model::Field>,
+    pub credential_id: Vec<u8>,
+    /// authenticator data with the attested credential (flags include AT)
+    pub authenticator_data: Vec<u8>,
+    /// CBOR `{ fmt: "none", attStmt: {}, authData }`
+    pub attestation_object: Vec<u8>,
+    /// SubjectPublicKeyInfo DER, for `getPublicKey()`
+    pub public_key_spki: Vec<u8>,
+}
+
+/// COSE algorithm identifier of ES256, the only algorithm Vaultlet creates.
+pub const COSE_ES256: i64 = -7;
+
+/// Create a passkey for `rp_id`: a new P-256 key pair whose private half stays in the vault.
+/// The attestation is "none" with an all-zero AAGUID, like most software passkey providers.
+pub fn register(rp_id: &str, user: &NewPasskeyUser) -> Result<Registration> {
+    use p256::elliptic_curve::rand_core::OsRng;
+    use p256::pkcs8::{EncodePrivateKey, EncodePublicKey, LineEnding};
+
+    let rp_id = rp_id.to_ascii_lowercase();
+    let key = SigningKey::random(&mut OsRng);
+    let mut credential_id = vec![0u8; 16];
+    getrandom::fill(&mut credential_id).map_err(|e| Error::Crypto(format!("os rng unavailable: {e}")))?;
+
+    let point = key.verifying_key().to_encoded_point(false);
+    let (x, y) = (point.x().ok_or_else(|| Error::Crypto("bad key".into()))?, point.y().ok_or_else(|| Error::Crypto("bad key".into()))?);
+    // COSE_Key: { 1 (kty): 2 (EC2), 3 (alg): -7 (ES256), -1 (crv): 1 (P-256), -2 (x), -3 (y) }
+    let mut cose = Vec::new();
+    cbor::map_header(&mut cose, 5);
+    for (k, v) in [(1, 2), (3, COSE_ES256), (-1, 1)] {
+        cbor::int(&mut cose, k);
+        cbor::int(&mut cose, v);
+    }
+    cbor::int(&mut cose, -2);
+    cbor::bytes(&mut cose, x);
+    cbor::int(&mut cose, -3);
+    cbor::bytes(&mut cose, y);
+
+    let mut authenticator_data = Sha256::digest(rp_id.as_bytes()).to_vec();
+    authenticator_data.push(FLAGS | 0x40); // + attested credential data
+    authenticator_data.extend_from_slice(&0u32.to_be_bytes());
+    authenticator_data.extend_from_slice(&[0u8; 16]); // AAGUID
+    authenticator_data.extend_from_slice(&(credential_id.len() as u16).to_be_bytes());
+    authenticator_data.extend_from_slice(&credential_id);
+    authenticator_data.extend_from_slice(&cose);
+
+    let mut attestation_object = Vec::new();
+    cbor::map_header(&mut attestation_object, 3);
+    cbor::text(&mut attestation_object, "fmt");
+    cbor::text(&mut attestation_object, "none");
+    cbor::text(&mut attestation_object, "attStmt");
+    cbor::map_header(&mut attestation_object, 0);
+    cbor::text(&mut attestation_object, "authData");
+    cbor::bytes(&mut attestation_object, &authenticator_data);
+
+    let pem = key.to_pkcs8_pem(LineEnding::LF).map_err(|e| Error::Crypto(e.to_string()))?.to_string();
+    let public_key_spki = key.verifying_key().to_public_key_der().map_err(|e| Error::Crypto(e.to_string()))?.into_vec();
+    let fields = vec![
+        crate::model::Field::new(FIELD_USERNAME, user.name.clone()),
+        crate::model::Field::new(FIELD_CREDENTIAL_ID, encode_credential_id(&credential_id)),
+        crate::model::Field::protected(FIELD_PRIVATE_KEY, pem),
+        crate::model::Field::new(FIELD_RELYING_PARTY, rp_id),
+        crate::model::Field::protected(FIELD_USER_HANDLE, B64URL.encode(&user.id)),
+    ];
+    Ok(Registration { fields, credential_id, authenticator_data, attestation_object, public_key_spki })
+}
+
+/// Just enough CBOR (RFC 8949) for COSE keys and attestation objects.
+mod cbor {
+    fn head(out: &mut Vec<u8>, major: u8, n: u64) {
+        let m = major << 5;
+        match n {
+            0..=23 => out.push(m | n as u8),
+            24..=0xff => out.extend_from_slice(&[m | 24, n as u8]),
+            0x100..=0xffff => {
+                out.push(m | 25);
+                out.extend_from_slice(&(n as u16).to_be_bytes());
+            }
+            _ => {
+                out.push(m | 26);
+                out.extend_from_slice(&(n as u32).to_be_bytes());
+            }
+        }
+    }
+    pub fn int(out: &mut Vec<u8>, v: i64) {
+        if v >= 0 {
+            head(out, 0, v as u64)
+        } else {
+            head(out, 1, (-1 - v) as u64)
+        }
+    }
+    pub fn bytes(out: &mut Vec<u8>, b: &[u8]) {
+        head(out, 2, b.len() as u64);
+        out.extend_from_slice(b);
+    }
+    pub fn text(out: &mut Vec<u8>, s: &str) {
+        head(out, 3, s.len() as u64);
+        out.extend_from_slice(s.as_bytes());
+    }
+    pub fn map_header(out: &mut Vec<u8>, len: u64) {
+        head(out, 5, len);
+    }
+}
+
 /// Credential IDs are base64url in KeePassXC's format. Bitwarden exports them as a GUID
 /// (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`, the 16 raw bytes in order) or as `b64.<base64url>`;
 /// older Vaultlet imports copied those verbatim, so accept all three.
@@ -221,6 +337,63 @@ mod tests {
         let pk = Passkey::from_item(&item).unwrap();
         assert!(matches!(pk.assert(&[0u8; 32]), Err(Error::Crypto(_))));
         assert!(matches!(pk.assert(&[0u8; 5]), Err(Error::InvalidArgument(_))));
+    }
+
+    #[test]
+    fn registration_round_trip() {
+        use ciborium::value::Value;
+        let user = NewPasskeyUser { id: b"user-42".to_vec(), name: "alice@example.com".into() };
+        let reg = register("Example.COM", &user).unwrap();
+
+        // The stored fields make a usable passkey for the same credential.
+        let mut item = Item::new(ItemKind::Login, "example.com");
+        item.fields = reg.fields.clone();
+        let pk = Passkey::from_item(&item).unwrap();
+        assert_eq!(pk.rp_id, "example.com");
+        assert_eq!(pk.credential_id, reg.credential_id);
+        assert_eq!(pk.username, "alice@example.com");
+        assert_eq!(pk.user_handle.as_deref(), Some(&b"user-42"[..]));
+        assert_eq!(reg.credential_id.len(), 16);
+
+        // Attestation object, decoded by an independent CBOR implementation.
+        let att: Value = ciborium::from_reader(reg.attestation_object.as_slice()).unwrap();
+        let map = att.as_map().unwrap();
+        let get = |k: &str| map.iter().find(|(key, _)| key.as_text() == Some(k)).map(|(_, v)| v.clone()).unwrap();
+        assert_eq!(get("fmt").as_text(), Some("none"));
+        assert!(get("attStmt").as_map().unwrap().is_empty());
+        let auth = get("authData").as_bytes().unwrap().clone();
+        assert_eq!(auth, reg.authenticator_data);
+
+        // authData: rpIdHash, flags (UP UV BE BS AT), counter, AAGUID, credential id, COSE key.
+        assert_eq!(&auth[..32], Sha256::digest(b"example.com").as_slice());
+        assert_eq!(auth[32], 0x5d);
+        assert_eq!(&auth[33..37], &[0, 0, 0, 0]);
+        assert_eq!(&auth[37..53], &[0u8; 16]);
+        let id_len = u16::from_be_bytes([auth[53], auth[54]]) as usize;
+        assert_eq!(&auth[55..55 + id_len], reg.credential_id.as_slice());
+        let cose: Value = ciborium::from_reader(&auth[55 + id_len..]).unwrap();
+        let cose = cose.as_map().unwrap();
+        let int = |k: i64| cose.iter().find(|(key, _)| key.as_integer() == Some(k.into())).map(|(_, v)| v.clone()).unwrap();
+        assert_eq!(int(1).as_integer(), Some(2.into()));
+        assert_eq!(int(3).as_integer(), Some(COSE_ES256.into()));
+        assert_eq!(int(-1).as_integer(), Some(1.into()));
+        let (x, y) = (int(-2).as_bytes().unwrap().clone(), int(-3).as_bytes().unwrap().clone());
+
+        // The COSE key and the SPKI are the same public key, and it verifies an assertion.
+        let mut sec1 = vec![4u8];
+        sec1.extend_from_slice(&x);
+        sec1.extend_from_slice(&y);
+        let vk = VerifyingKey::from_sec1_bytes(&sec1).unwrap();
+        use p256::pkcs8::DecodePublicKey;
+        assert_eq!(VerifyingKey::from_public_key_der(&reg.public_key_spki).unwrap(), vk);
+        let hash = Sha256::digest(b"client data");
+        let a = pk.assert(&hash).unwrap();
+        let mut signed = a.authenticator_data.clone();
+        signed.extend_from_slice(&hash);
+        vk.verify(&signed, &Signature::from_der(&a.signature).unwrap()).unwrap();
+
+        // Two registrations never share a credential.
+        assert_ne!(register("example.com", &user).unwrap().credential_id, reg.credential_id);
     }
 
     #[test]

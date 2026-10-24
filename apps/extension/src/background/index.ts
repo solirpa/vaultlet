@@ -76,6 +76,8 @@ const passkeys = new PasskeyFlow(
   {
     passkeyList: (origin, rpId, allow) => client.passkeyList(origin, rpId, allow),
     passkeySign: (origin, rpId, entryId, hash) => client.passkeySign(origin, rpId, entryId, hash),
+    passkeyCreate: (input) => client.passkeyCreate(input),
+    logins: (url) => client.getLogins(url),
     async isPaired() {
       await client.loadIdentity();
       return client.paired;
@@ -475,6 +477,7 @@ const contentHandlers: ContentHandlers = {
   },
   promptAction: (ctx, promptId, action) => saveFlow.action(ctx.tabId, promptId, action),
   passkeyGet: (ctx, pageRequestId, request) => passkeys.get(ctx, String(pageRequestId), request),
+  passkeyCreate: (ctx, pageRequestId, request) => passkeys.create(ctx, String(pageRequestId), request),
   async passkeyCancel(ctx, pageRequestId) {
     passkeys.cancelFromPage(ctx.tabId, String(pageRequestId));
   },

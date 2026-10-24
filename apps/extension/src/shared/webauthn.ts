@@ -2,12 +2,13 @@
  * Passkey (WebAuthn) plumbing shared by the page script, the bridge content
  * script, the background and the confirmation window.
  *
- * Flow for `navigator.credentials.get()`:
+ * Flow for `navigator.credentials.get()` / `.create()`:
  *   page script (MAIN world) → window.postMessage → bridge (content script)
- *   → runtime RPC `passkeyGet` → background: origin from the sender, opens the
- *   confirmation window → desktop app signs (`passkey-sign`) → back the same way.
- * The private key never leaves the desktop app; the extension only sees the
- * authenticator data and the signature.
+ *   → runtime RPC `passkeyGet` / `passkeyCreate` → background: origin from the
+ *   sender, opens the confirmation window → desktop app signs (`passkey-sign`)
+ *   or creates the key pair (`passkey-create`) → back the same way.
+ * The private key never leaves the desktop app; the extension only sees
+ * authenticator data, signatures and public keys.
  */
 
 /** window.postMessage tag between the page script and the bridge. */
@@ -25,13 +26,36 @@ export interface PageGetRequest {
   timeout?: number;
 }
 
+/** What the page script hands over for `navigator.credentials.create()`. */
+export interface PageCreateRequest {
+  challenge: string;
+  rp: { id?: string; name: string };
+  /** user.id base64url */
+  user: { id: string; name: string; displayName: string };
+  /** COSE algorithm ids the site accepts, in its order of preference */
+  algorithms: number[];
+  excludeCredentials: string[];
+  authenticatorAttachment?: string;
+  timeout?: number;
+  /** the site asked for the credProps extension */
+  credProps: boolean;
+}
+
+/** Rejections the page script turns into a DOMException of that name. */
+export type PageErrorName = 'NotAllowedError' | 'SecurityError' | 'AbortError' | 'InvalidStateError';
+
 /** Bridge → page answer. */
 export type PageGetResult =
   /** let the browser's own WebAuthn handle it (no matching passkey, user chose the device/security key, …) */
   | { kind: 'fallback' }
   /** reject the page's promise with a DOMException of this name */
-  | { kind: 'error'; name: 'NotAllowedError' | 'SecurityError' | 'AbortError' }
+  | { kind: 'error'; name: PageErrorName }
   | { kind: 'assertion'; assertion: AssertionJSON };
+
+export type PageCreateResult =
+  | { kind: 'fallback' }
+  | { kind: 'error'; name: PageErrorName }
+  | { kind: 'attestation'; attestation: AttestationJSON };
 
 /** A `PublicKeyCredential` (assertion) in its JSON form, as `toJSON()` produces. */
 export interface AssertionJSON {
@@ -48,13 +72,32 @@ export interface AssertionJSON {
   clientExtensionResults: Record<string, never>;
 }
 
+/** A `PublicKeyCredential` (attestation) in its JSON form. */
+export interface AttestationJSON {
+  id: string;
+  rawId: string;
+  type: 'public-key';
+  authenticatorAttachment: 'platform';
+  response: {
+    clientDataJSON: string;
+    attestationObject: string;
+    authenticatorData: string;
+    /** SubjectPublicKeyInfo DER */
+    publicKey: string;
+    publicKeyAlgorithm: number;
+    transports: string[];
+  };
+  clientExtensionResults: { credProps?: { rk: boolean } };
+}
+
 export interface PageMessage {
   source: typeof PAGE_CHANNEL;
   /** request id, unique per call */
   id: string;
   dir: 'request' | 'response' | 'cancel';
-  request?: PageGetRequest;
-  result?: PageGetResult;
+  op?: 'get' | 'create';
+  request?: PageGetRequest | PageCreateRequest;
+  result?: PageGetResult | PageCreateResult;
 }
 
 export function isPageMessage(m: unknown): m is PageMessage {
@@ -102,11 +145,11 @@ export function rpIdMatchesHost(rpId: string, host: string): boolean {
 }
 
 /**
- * The clientDataJSON a browser would produce for `navigator.credentials.get()`.
+ * The clientDataJSON a browser would produce for `get()` / `create()`.
  * Built by the extension from the frame's real origin, never from page input.
  */
-export function clientDataJSON(challenge: string, origin: string): string {
-  return JSON.stringify({ type: 'webauthn.get', challenge, origin, crossOrigin: false });
+export function clientDataJSON(challenge: string, origin: string, type: 'webauthn.get' | 'webauthn.create' = 'webauthn.get'): string {
+  return JSON.stringify({ type, challenge, origin, crossOrigin: false });
 }
 
 export async function sha256B64url(text: string): Promise<string> {

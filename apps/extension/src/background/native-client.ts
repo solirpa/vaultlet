@@ -25,6 +25,8 @@ import {
   type HelloResponse,
   type LoginEntry,
   type PasskeyCandidate,
+  type PasskeyCreateInput,
+  type PasskeyCreateResponse,
   type PasskeyListResponse,
   type PasskeySignResponse,
   type ProtocolError,
@@ -483,6 +485,19 @@ export class NativeClient {
       username: e.username ?? '',
       credentialId: e.credentialId,
     }));
+  }
+
+  /** Have the app create a passkey and store it in the vault. */
+  async passkeyCreate(input: PasskeyCreateInput): Promise<Omit<PasskeyCreateResponse, 'id' | 'ok'>> {
+    const r = await this.call<PasskeyCreateResponse>({ action: 'passkey-create', ...input });
+    return {
+      entryId: r.entryId,
+      credentialId: r.credentialId,
+      authenticatorData: r.authenticatorData,
+      attestationObject: r.attestationObject,
+      publicKey: r.publicKey,
+      publicKeyAlgorithm: r.publicKeyAlgorithm,
+    };
   }
 
   /** Have the app sign an assertion; `clientDataHash` is SHA-256(clientDataJSON), base64url. */

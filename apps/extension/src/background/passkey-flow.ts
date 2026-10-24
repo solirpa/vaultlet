@@ -1,15 +1,16 @@
 /**
- * Background side of passkey sign-in (see shared/webauthn.ts for the whole flow).
+ * Background side of passkeys (see shared/webauthn.ts for the whole flow):
+ * signing in with a passkey from the vault (`get`) and saving new ones (`create`).
  *
  * Security properties:
  *   - The origin comes from the requesting frame's sender URL (set by the browser),
  *     never from the page. The clientDataJSON is built here from that origin.
- *   - Nothing is signed without a click in the confirmation window, an extension
- *     page the website cannot script or overlay.
- *   - The desktop app re-checks that the origin may act for the RP ID before it
- *     lists or signs anything.
+ *   - Nothing is signed or created without a click in the confirmation window, an
+ *     extension page the website cannot script or overlay.
+ *   - The desktop app re-checks that the origin may act for the RP ID, and never
+ *     replaces an existing passkey.
  */
-import type { PasskeyCandidate, PasskeySignResponse } from '../shared/protocol';
+import type { LoginEntry, PasskeyCandidate, PasskeyCreateInput, PasskeyCreateResponse, PasskeySignResponse } from '../shared/protocol';
 import type { PasskeyAnswer, PasskeyPrompt } from '../shared/rpc';
 import {
   clientDataJSON,
@@ -17,6 +18,9 @@ import {
   rpIdMatchesHost,
   sha256B64url,
   toB64url,
+  type PageCreateRequest,
+  type PageCreateResult,
+  type PageErrorName,
   type PageGetRequest,
   type PageGetResult,
 } from '../shared/webauthn';
@@ -25,6 +29,9 @@ export interface PasskeyClient {
   /** throws with code 'locked' when the vault is locked */
   passkeyList(origin: string, rpId: string, allowCredentials: string[]): Promise<PasskeyCandidate[]>;
   passkeySign(origin: string, rpId: string, entryId: string, clientDataHash: string): Promise<Omit<PasskeySignResponse, 'id' | 'ok'>>;
+  passkeyCreate(input: PasskeyCreateInput): Promise<Omit<PasskeyCreateResponse, 'id' | 'ok'>>;
+  /** logins matching a page URL (throws 'locked' when locked) */
+  logins(url: string): Promise<LoginEntry[]>;
   isPaired(): Promise<boolean>;
 }
 
@@ -43,24 +50,29 @@ export interface PasskeyCaller {
   tabUrl: string;
 }
 
-interface Pending {
+type Op = { op: 'get'; request: PageGetRequest } | { op: 'create'; request: PageCreateRequest };
+type Result = PageGetResult | PageCreateResult;
+
+type Pending = Op & {
   requestId: string;
   tabId: number;
+  pageUrl: string;
   pageRequestId: string;
   origin: string;
   rpId: string;
-  request: PageGetRequest;
   windowId?: number;
   timer: ReturnType<typeof setTimeout>;
-  resolve: (r: PageGetResult) => void;
-}
+  resolve: (r: Result) => void;
+};
 
+/** COSE ES256, the only algorithm Vaultlet creates passkeys with. */
+const ES256 = -7;
 const DEFAULT_TIMEOUT_MS = 5 * 60_000;
 const MIN_TIMEOUT_MS = 30_000;
 const MAX_TIMEOUT_MS = 10 * 60_000;
 
-const FALLBACK: PageGetResult = { kind: 'fallback' };
-const NOT_ALLOWED: PageGetResult = { kind: 'error', name: 'NotAllowedError' };
+const FALLBACK = { kind: 'fallback' } as const;
+const error = (name: PageErrorName) => ({ kind: 'error', name }) as const;
 
 function originOf(url: string): string | null {
   try {
@@ -74,6 +86,8 @@ function errorCode(e: unknown): string | undefined {
   return (e as { code?: string } | null)?.code;
 }
 
+const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((c): c is string => typeof c === 'string') : []);
+
 export class PasskeyFlow {
   private pending = new Map<string, Pending>();
 
@@ -85,40 +99,128 @@ export class PasskeyFlow {
 
   /** `navigator.credentials.get()` from a page; settles when the user decided (or it timed out). */
   async get(caller: PasskeyCaller, pageRequestId: string, request: PageGetRequest): Promise<PageGetResult> {
-    const origin = originOf(caller.url);
-    if (!origin || !isSecureOrigin(caller.url) || typeof request?.challenge !== 'string') return FALLBACK;
-    // Cross-origin iframes need the browser's own permission-policy handling.
-    if (caller.frameId !== 0 && originOf(caller.tabUrl) !== origin) return FALLBACK;
-    const host = new URL(origin).hostname;
-    const rpId = (request.rpId || host).toLowerCase();
-    if (!rpIdMatchesHost(rpId, host)) return { kind: 'error', name: 'SecurityError' };
-    const allow = Array.isArray(request.allowCredentials) ? request.allowCredentials.filter((c) => typeof c === 'string') : [];
-
+    const where = this.locate(caller, request?.rpId);
+    if ('kind' in where) return where;
+    if (typeof request?.challenge !== 'string') return FALLBACK;
+    const allow = strings(request.allowCredentials);
     if (!(await this.client.isPaired().catch(() => false))) return FALLBACK;
     try {
-      const entries = await this.client.passkeyList(origin, rpId, allow);
+      const entries = await this.client.passkeyList(where.origin, where.rpId, allow);
       if (entries.length === 0) return FALLBACK; // nothing in Vaultlet for this site
     } catch (e) {
       // Locked: we cannot know yet, so ask (the window offers to unlock or use another device).
       if (errorCode(e) !== 'locked') return FALLBACK;
     }
+    return this.ask(caller, pageRequestId, where, { op: 'get', request: { ...request, allowCredentials: allow } }) as Promise<PageGetResult>;
+  }
 
+  /** `navigator.credentials.create()` from a page. */
+  async create(caller: PasskeyCaller, pageRequestId: string, request: PageCreateRequest): Promise<PageCreateResult> {
+    const where = this.locate(caller, request?.rp?.id);
+    if ('kind' in where) return where;
+    if (typeof request?.challenge !== 'string' || typeof request.user?.id !== 'string') return FALLBACK;
+    // Sites that insist on a security key, or cannot take ES256, keep the browser's flow.
+    if (request.authenticatorAttachment === 'cross-platform') return FALLBACK;
+    if (!Array.isArray(request.algorithms) || !request.algorithms.includes(ES256)) return FALLBACK;
+    if (!(await this.client.isPaired().catch(() => false))) return FALLBACK;
+    const clean: PageCreateRequest = { ...request, excludeCredentials: strings(request.excludeCredentials) };
+    return this.ask(caller, pageRequestId, where, { op: 'create', request: clean }) as Promise<PageCreateResult>;
+  }
+
+  /** What the confirmation window shows; null when the request is gone. */
+  async prompt(requestId: string): Promise<PasskeyPrompt | null> {
+    const p = this.pending.get(requestId);
+    if (!p) return null;
+    const base = { origin: p.origin, rpId: p.rpId };
+    try {
+      if (p.op === 'get') {
+        const entries = await this.client.passkeyList(p.origin, p.rpId, p.request.allowCredentials);
+        return { kind: 'get', ...base, locked: false, entries: entries.map(({ entryId, title, username }) => ({ entryId, title, username })) };
+      }
+      const excluded =
+        p.request.excludeCredentials.length > 0 &&
+        (await this.client.passkeyList(p.origin, p.rpId, p.request.excludeCredentials)).length > 0;
+      const targets = (await this.client.logins(p.pageUrl))
+        .filter((e) => !e.passkey)
+        .map(({ id, title, username }) => ({ entryId: id, title, username }));
+      return { ...this.createInfo(p), locked: false, excluded, targets };
+    } catch (e) {
+      if (errorCode(e) !== 'locked') throw e;
+      return p.op === 'get'
+        ? { kind: 'get', ...base, locked: true, entries: [] }
+        : { ...this.createInfo(p), locked: true, excluded: false, targets: [] };
+    }
+  }
+
+  /** The user's choice in the confirmation window. Signing / saving errors are thrown back to the window. */
+  async answer(requestId: string, answer: PasskeyAnswer): Promise<void> {
+    const p = this.pending.get(requestId);
+    if (!p) return;
+    if (answer === 'fallback') return this.finish(p, FALLBACK);
+    if (answer === 'cancel') {
+      // Declining after being told the account already has a passkey here is the spec's InvalidStateError.
+      let name: PageErrorName = 'NotAllowedError';
+      if (p.op === 'create') {
+        const info = await this.prompt(requestId).catch(() => null);
+        if (info?.kind === 'create' && info.excluded) name = 'InvalidStateError';
+      }
+      return this.finish(p, error(name));
+    }
+    if (p.op === 'get') {
+      if (typeof (answer as { entryId?: unknown }).entryId !== 'string') throw new Error('bad answer');
+      return this.signIn(p, (answer as { entryId: string }).entryId);
+    }
+    if (typeof (answer as { saveTo?: unknown }).saveTo !== 'string') throw new Error('bad answer');
+    return this.save(p, (answer as { saveTo: string }).saveTo);
+  }
+
+  /** The page aborted its call. */
+  cancelFromPage(tabId: number, pageRequestId: string): void {
+    for (const p of this.pending.values()) {
+      if (p.tabId === tabId && p.pageRequestId === pageRequestId) this.finish(p, error('AbortError'));
+    }
+  }
+
+  /** A window was closed (by the user or by us). */
+  windowClosed(windowId: number): void {
+    for (const p of this.pending.values()) if (p.windowId === windowId) this.finish(p, error('NotAllowedError'));
+  }
+
+  /** The tab went away or navigated. */
+  tabGone(tabId: number): void {
+    for (const p of this.pending.values()) if (p.tabId === tabId) this.finish(p, error('NotAllowedError'));
+  }
+
+  // ---- internals -------------------------------------------------------------
+
+  /** Origin and RP ID for a request, or the answer to give right away. */
+  private locate(caller: PasskeyCaller, requestedRpId: unknown): { origin: string; rpId: string } | typeof FALLBACK | ReturnType<typeof error> {
+    const origin = originOf(caller.url);
+    if (!origin || !isSecureOrigin(caller.url)) return FALLBACK;
+    // Cross-origin iframes need the browser's own permission-policy handling.
+    if (caller.frameId !== 0 && originOf(caller.tabUrl) !== origin) return FALLBACK;
+    const host = new URL(origin).hostname;
+    const rpId = (typeof requestedRpId === 'string' && requestedRpId ? requestedRpId : host).toLowerCase();
+    if (!rpIdMatchesHost(rpId, host)) return error('SecurityError');
+    return { origin, rpId };
+  }
+
+  private ask(caller: PasskeyCaller, pageRequestId: string, where: { origin: string; rpId: string }, op: Op): Promise<Result> {
     // One prompt per tab: a new request replaces an older one.
-    for (const p of this.pending.values()) if (p.tabId === caller.tabId) this.finish(p, NOT_ALLOWED);
-
-    const timeout = Math.min(MAX_TIMEOUT_MS, Math.max(MIN_TIMEOUT_MS, Number(request.timeout) || DEFAULT_TIMEOUT_MS));
+    for (const p of this.pending.values()) if (p.tabId === caller.tabId) this.finish(p, error('NotAllowedError'));
+    const timeout = Math.min(MAX_TIMEOUT_MS, Math.max(MIN_TIMEOUT_MS, Number(op.request.timeout) || DEFAULT_TIMEOUT_MS));
     const requestId = this.newId();
-    return new Promise<PageGetResult>((resolve) => {
-      const p: Pending = {
+    return new Promise<Result>((resolve) => {
+      const p = {
+        ...op,
         requestId,
         tabId: caller.tabId,
+        pageUrl: caller.url,
         pageRequestId,
-        origin,
-        rpId,
-        request: { ...request, allowCredentials: allow },
-        timer: setTimeout(() => this.finish(p, NOT_ALLOWED), timeout),
+        ...where,
         resolve,
-      };
+      } as Pending;
+      p.timer = setTimeout(() => this.finish(p, error('NotAllowedError')), timeout);
       this.pending.set(requestId, p);
       this.windows
         .open(requestId)
@@ -131,35 +233,21 @@ export class PasskeyFlow {
     });
   }
 
-  /** What the confirmation window shows; null when the request is gone. */
-  async prompt(requestId: string): Promise<PasskeyPrompt | null> {
-    const p = this.pending.get(requestId);
-    if (!p) return null;
-    try {
-      const entries = await this.client.passkeyList(p.origin, p.rpId, p.request.allowCredentials);
-      return {
-        origin: p.origin,
-        rpId: p.rpId,
-        locked: false,
-        entries: entries.map(({ entryId, title, username }) => ({ entryId, title, username })),
-      };
-    } catch (e) {
-      if (errorCode(e) === 'locked') return { origin: p.origin, rpId: p.rpId, locked: true, entries: [] };
-      throw e;
-    }
+  private createInfo(p: Pending & { op: 'create' }) {
+    return {
+      kind: 'create' as const,
+      origin: p.origin,
+      rpId: p.rpId,
+      rpName: String(p.request.rp?.name ?? ''),
+      userName: String(p.request.user.name ?? ''),
+      userDisplayName: String(p.request.user.displayName ?? ''),
+    };
   }
 
-  /** The user's choice in the confirmation window. Signing errors are thrown back to the window. */
-  async answer(requestId: string, answer: PasskeyAnswer): Promise<void> {
-    const p = this.pending.get(requestId);
-    if (!p) return;
-    if (answer === 'cancel') return this.finish(p, NOT_ALLOWED);
-    if (answer === 'fallback') return this.finish(p, FALLBACK);
-    if (typeof answer?.entryId !== 'string') throw new Error('bad answer');
-
-    const json = clientDataJSON(p.request.challenge, p.origin);
-    const signed = await this.client.passkeySign(p.origin, p.rpId, answer.entryId, await sha256B64url(json));
-    if (!this.pending.has(requestId)) return; // timed out / cancelled meanwhile
+  private async signIn(p: Pending & { op: 'get' }, entryId: string): Promise<void> {
+    const json = clientDataJSON(p.request.challenge, p.origin, 'webauthn.get');
+    const signed = await this.client.passkeySign(p.origin, p.rpId, entryId, await sha256B64url(json));
+    if (!this.pending.has(p.requestId)) return; // timed out / cancelled meanwhile
     this.finish(p, {
       kind: 'assertion',
       assertion: {
@@ -178,24 +266,46 @@ export class PasskeyFlow {
     });
   }
 
-  /** The page aborted its call. */
-  cancelFromPage(tabId: number, pageRequestId: string): void {
-    for (const p of this.pending.values()) {
-      if (p.tabId === tabId && p.pageRequestId === pageRequestId) this.finish(p, { kind: 'error', name: 'AbortError' });
+  private async save(p: Pending & { op: 'create' }, saveTo: string): Promise<void> {
+    const r = p.request;
+    let created: Omit<PasskeyCreateResponse, 'id' | 'ok'>;
+    try {
+      created = await this.client.passkeyCreate({
+        origin: p.origin,
+        rpId: p.rpId,
+        rpName: r.rp?.name || undefined,
+        userId: r.user.id,
+        userName: r.user.name || r.user.displayName,
+        entryId: saveTo === 'new' ? undefined : saveTo,
+        excludeCredentials: r.excludeCredentials,
+      });
+    } catch (e) {
+      if (errorCode(e) === 'excluded') return this.finish(p, error('InvalidStateError'));
+      throw e;
     }
+    if (!this.pending.has(p.requestId)) return;
+    const json = clientDataJSON(r.challenge, p.origin, 'webauthn.create');
+    this.finish(p, {
+      kind: 'attestation',
+      attestation: {
+        id: created.credentialId,
+        rawId: created.credentialId,
+        type: 'public-key',
+        authenticatorAttachment: 'platform',
+        response: {
+          clientDataJSON: toB64url(new TextEncoder().encode(json)),
+          attestationObject: created.attestationObject,
+          authenticatorData: created.authenticatorData,
+          publicKey: created.publicKey,
+          publicKeyAlgorithm: created.publicKeyAlgorithm,
+          transports: ['hybrid', 'internal'],
+        },
+        clientExtensionResults: r.credProps ? { credProps: { rk: true } } : {},
+      },
+    });
   }
 
-  /** A window was closed (by the user or by us). */
-  windowClosed(windowId: number): void {
-    for (const p of this.pending.values()) if (p.windowId === windowId) this.finish(p, NOT_ALLOWED);
-  }
-
-  /** The tab went away or navigated. */
-  tabGone(tabId: number): void {
-    for (const p of this.pending.values()) if (p.tabId === tabId) this.finish(p, NOT_ALLOWED);
-  }
-
-  private finish(p: Pending, result: PageGetResult): void {
+  private finish(p: Pending, result: Result): void {
     if (!this.pending.delete(p.requestId)) return;
     clearTimeout(p.timer);
     if (p.windowId !== undefined) this.windows.close(p.windowId);

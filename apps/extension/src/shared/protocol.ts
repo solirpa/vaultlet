@@ -56,7 +56,8 @@ export type Action =
   | 'get-entry'
   | 'get-icon'
   | 'passkey-list'
-  | 'passkey-sign';
+  | 'passkey-sign'
+  | 'passkey-create';
 
 export type Request =
   | { id: string; action: 'associate' }
@@ -72,7 +73,24 @@ export type Request =
   | { id: string; action: 'get-icon'; host: string }
   | ({ id: string; action: 'save-login' } & SaveLoginInput)
   | { id: string; action: 'passkey-list'; origin: string; rpId: string; allowCredentials?: string[] }
-  | { id: string; action: 'passkey-sign'; origin: string; rpId: string; entryId: string; clientDataHash: string };
+  | { id: string; action: 'passkey-sign'; origin: string; rpId: string; entryId: string; clientDataHash: string }
+  | ({ id: string; action: 'passkey-create' } & PasskeyCreateInput);
+
+/**
+ * `passkey-create`: the app generates the key pair and stores the private key in the vault,
+ * on `entryId` (a login without a passkey) or on a new login. `code: "excluded"` when one of
+ * `excludeCredentials` is already in the vault for this RP.
+ */
+export interface PasskeyCreateInput {
+  origin: string;
+  rpId: string;
+  rpName?: string;
+  /** user handle, base64url */
+  userId: string;
+  userName: string;
+  entryId?: string;
+  excludeCredentials?: string[];
+}
 
 /** A passkey the app holds for a relying party (`passkey-list`). No key material. */
 export interface PasskeyCandidate {
@@ -103,6 +121,8 @@ export interface LoginEntry {
   password: string;
   totp: boolean;
   url: string;
+  /** the entry already holds a passkey (app 0.1.2+) */
+  passkey?: boolean;
 }
 
 /** A login without its password (`list`, `search`). */
@@ -188,6 +208,16 @@ export interface PasskeySignResponse extends OkResponse {
   userHandle: string | null;
 }
 
+/** `passkey-create`: binary values base64url; `publicKey` is the SubjectPublicKeyInfo DER. */
+export interface PasskeyCreateResponse extends OkResponse {
+  entryId: string;
+  credentialId: string;
+  authenticatorData: string;
+  attestationObject: string;
+  publicKey: string;
+  publicKeyAlgorithm: number;
+}
+
 export type Response =
   | OkResponse
   | ErrResponse
@@ -200,7 +230,8 @@ export type Response =
   | GetIconResponse
   | SaveLoginResponse
   | PasskeyListResponse
-  | PasskeySignResponse;
+  | PasskeySignResponse
+  | PasskeyCreateResponse;
 
 export type PushEventName = 'locked' | 'unlocked' | 'items-changed';
 export interface PushEvent {

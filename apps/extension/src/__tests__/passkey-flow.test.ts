@@ -5,7 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PasskeyFlow, type PasskeyCaller, type PasskeyClient } from '../background/passkey-flow';
-import type { PasskeyCandidate } from '../shared/protocol';
+import type { LoginEntry, PasskeyCandidate, PasskeyCreateInput } from '../shared/protocol';
 import { clientDataJSON, fromB64url, isSecureOrigin, rpIdMatchesHost, sha256B64url, toB64url } from '../shared/webauthn';
 
 const AWS: PasskeyCaller = {
@@ -16,11 +16,33 @@ const AWS: PasskeyCaller = {
 };
 const ENTRY: PasskeyCandidate = { entryId: 'e1', title: 'AWS-123456789012', username: 'alice', credentialId: 'AQID' };
 
-function setup(opts: { entries?: PasskeyCandidate[]; locked?: boolean; paired?: boolean } = {}) {
+const LOGINS: LoginEntry[] = [
+  { id: 'l1', title: 'Example', username: 'alice', password: 'pw', totp: false, url: 'https://example.com', passkey: false },
+  { id: 'l2', title: 'Example 2', username: 'bob', password: 'pw', totp: false, url: 'https://example.com', passkey: true },
+];
+
+function setup(opts: { entries?: PasskeyCandidate[]; locked?: boolean; paired?: boolean; createError?: string } = {}) {
   let locked = opts.locked ?? false;
   const signed: { origin: string; rpId: string; entryId: string; hash: string }[] = [];
   const listed: { origin: string; rpId: string; allow: string[] }[] = [];
+  const created: PasskeyCreateInput[] = [];
   const client: PasskeyClient = {
+    async passkeyCreate(input) {
+      created.push(input);
+      if (opts.createError) throw Object.assign(new Error(opts.createError), { code: opts.createError });
+      return {
+        entryId: 'new-entry',
+        credentialId: 'Q1JFRA',
+        authenticatorData: 'YXV0aA',
+        attestationObject: 'YXR0',
+        publicKey: 'c3BraQ',
+        publicKeyAlgorithm: -7,
+      };
+    },
+    async logins() {
+      if (locked) throw Object.assign(new Error('locked'), { code: 'locked' });
+      return LOGINS;
+    },
     async passkeyList(origin, rpId, allow) {
       listed.push({ origin, rpId, allow });
       if (locked) throw Object.assign(new Error('locked'), { code: 'locked' });
@@ -43,7 +65,7 @@ function setup(opts: { entries?: PasskeyCandidate[]; locked?: boolean; paired?: 
   };
   let n = 0;
   const flow = new PasskeyFlow(client, windows, () => `req-${++n}`);
-  return { flow, signed, listed, opened, closed, unlock: () => (locked = false) };
+  return { flow, signed, listed, created, opened, closed, unlock: () => (locked = false) };
 }
 
 const REQUEST = { challenge: 'Y2hhbGxlbmdl', rpId: 'aws.amazon.com', allowCredentials: [] as string[] };
@@ -79,6 +101,7 @@ describe('PasskeyFlow', () => {
 
     const prompt = await flow.prompt('req-1');
     expect(prompt).toEqual({
+      kind: 'get',
       origin: 'https://us-east-1.signin.aws.amazon.com',
       rpId: 'aws.amazon.com',
       locked: false,
@@ -170,7 +193,8 @@ describe('PasskeyFlow', () => {
     await tick();
     expect(await flow.prompt('req-1')).toMatchObject({ locked: true, entries: [] });
     unlock();
-    expect((await flow.prompt('req-1'))?.entries).toHaveLength(1);
+    const p = await flow.prompt('req-1');
+    expect(p?.kind === 'get' && p.entries).toHaveLength(1);
     await flow.answer('req-1', { entryId: 'e1' });
     expect((await r).kind).toBe('assertion');
   });
@@ -181,5 +205,124 @@ describe('PasskeyFlow', () => {
     const r = flow.get(AWS, 'p', { ...REQUEST, timeout: 60_000 });
     await vi.advanceTimersByTimeAsync(60_001);
     expect(await r).toEqual({ kind: 'error', name: 'NotAllowedError' });
+  });
+
+  // ---- create ----------------------------------------------------------------
+
+  const CREATE = {
+    challenge: 'Y2hhbGxlbmdl',
+    rp: { id: 'aws.amazon.com', name: 'AWS' },
+    user: { id: 'dXNlcg', name: 'alice', displayName: 'Alice' },
+    algorithms: [-8, -7, -257],
+    excludeCredentials: [] as string[],
+    credProps: true,
+  };
+
+  it('saves a passkey only after the user chose where, and returns a none attestation', async () => {
+    const { flow, created, opened } = setup({ entries: [] });
+    const result = flow.create(AWS, 'page-1', CREATE);
+    await tick();
+    expect(opened).toEqual(['req-1']);
+    expect(created).toEqual([]);
+
+    const prompt = await flow.prompt('req-1');
+    expect(prompt).toEqual({
+      kind: 'create',
+      origin: 'https://us-east-1.signin.aws.amazon.com',
+      rpId: 'aws.amazon.com',
+      rpName: 'AWS',
+      userName: 'alice',
+      userDisplayName: 'Alice',
+      locked: false,
+      excluded: false,
+      // logins that already hold a passkey are not offered
+      targets: [{ entryId: 'l1', title: 'Example', username: 'alice' }],
+    });
+
+    await flow.answer('req-1', { saveTo: 'l1' });
+    const r = await result;
+    expect(created).toEqual([
+      {
+        origin: 'https://us-east-1.signin.aws.amazon.com',
+        rpId: 'aws.amazon.com',
+        rpName: 'AWS',
+        userId: 'dXNlcg',
+        userName: 'alice',
+        entryId: 'l1',
+        excludeCredentials: [],
+      },
+    ]);
+    expect(r.kind).toBe('attestation');
+    if (r.kind !== 'attestation') return;
+    const cd = JSON.parse(new TextDecoder().decode(fromB64url(r.attestation.response.clientDataJSON)));
+    expect(cd).toEqual({
+      type: 'webauthn.create',
+      challenge: 'Y2hhbGxlbmdl',
+      origin: 'https://us-east-1.signin.aws.amazon.com',
+      crossOrigin: false,
+    });
+    expect(r.attestation).toMatchObject({ id: 'Q1JFRA', rawId: 'Q1JFRA', clientExtensionResults: { credProps: { rk: true } } });
+    expect(r.attestation.response).toMatchObject({ attestationObject: 'YXR0', publicKey: 'c3BraQ', publicKeyAlgorithm: -7 });
+  });
+
+  it('"new" saves to a new item', async () => {
+    const { flow, created } = setup();
+    const result = flow.create(AWS, 'p', CREATE);
+    await tick();
+    await flow.answer('req-1', { saveTo: 'new' });
+    expect((await result).kind).toBe('attestation');
+    expect(created[0].entryId).toBeUndefined();
+  });
+
+  it('leaves security-key-only and non-ES256 registrations to the browser', async () => {
+    const { flow, opened } = setup();
+    expect(await flow.create(AWS, 'p', { ...CREATE, authenticatorAttachment: 'cross-platform' })).toEqual({ kind: 'fallback' });
+    expect(await flow.create(AWS, 'p', { ...CREATE, algorithms: [-257] })).toEqual({ kind: 'fallback' });
+    expect(await setup({ paired: false }).flow.create(AWS, 'p', CREATE)).toEqual({ kind: 'fallback' });
+    expect(await flow.create({ ...AWS, url: 'https://evil.example/', tabUrl: 'https://evil.example/' }, 'p', CREATE)).toEqual({
+      kind: 'error',
+      name: 'SecurityError',
+    });
+    expect(opened).toEqual([]);
+  });
+
+  it('an account already in the vault: told so, OK gives InvalidStateError, nothing created', async () => {
+    const { flow, created, listed } = setup(); // passkeyList finds ENTRY
+    const result = flow.create(AWS, 'p', { ...CREATE, excludeCredentials: ['AQID'] });
+    await tick();
+    expect(await flow.prompt('req-1')).toMatchObject({ kind: 'create', excluded: true });
+    expect(listed.at(-1)).toEqual({ origin: 'https://us-east-1.signin.aws.amazon.com', rpId: 'aws.amazon.com', allow: ['AQID'] });
+    await flow.answer('req-1', 'cancel');
+    expect(await result).toEqual({ kind: 'error', name: 'InvalidStateError' });
+    expect(created).toEqual([]);
+  });
+
+  it('the app refusing an excluded credential at save time also gives InvalidStateError', async () => {
+    const { flow } = setup({ entries: [], createError: 'excluded' });
+    const result = flow.create(AWS, 'p', CREATE);
+    await tick();
+    await flow.answer('req-1', { saveTo: 'new' });
+    expect(await result).toEqual({ kind: 'error', name: 'InvalidStateError' });
+  });
+
+  it('other save errors go back to the window and the request stays open', async () => {
+    const { flow } = setup({ entries: [], createError: 'already-exists' });
+    const result = flow.create(AWS, 'p', CREATE);
+    await tick();
+    await expect(flow.answer('req-1', { saveTo: 'l1' })).rejects.toThrow('already-exists');
+    expect(await flow.prompt('req-1')).not.toBeNull();
+    await flow.answer('req-1', 'cancel');
+    expect(await result).toEqual({ kind: 'error', name: 'NotAllowedError' });
+  });
+
+  it('locked: the window waits for unlock before offering targets', async () => {
+    const { flow, unlock } = setup({ locked: true });
+    const result = flow.create(AWS, 'p', CREATE);
+    await tick();
+    expect(await flow.prompt('req-1')).toMatchObject({ kind: 'create', locked: true, targets: [] });
+    unlock();
+    expect(await flow.prompt('req-1')).toMatchObject({ locked: false, targets: [{ entryId: 'l1' }] });
+    await flow.answer('req-1', { saveTo: 'new' });
+    expect((await result).kind).toBe('attestation');
   });
 });

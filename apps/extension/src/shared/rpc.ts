@@ -9,7 +9,7 @@
  * another site's logins.
  */
 import type { EntryDetail, LoginEntry, LoginSummary, PushEventName, SaveLoginInput, SaveLoginResult } from './protocol';
-import type { PageGetRequest, PageGetResult } from './webauthn';
+import type { PageCreateRequest, PageCreateResult, PageGetRequest, PageGetResult } from './webauthn';
 import { sendRuntimeMessage } from './browser';
 
 export type ConnectionState = 'disconnected' | 'connecting' | 'connected';
@@ -89,15 +89,34 @@ export interface PageRpcMethods {
 }
 
 /** What the passkey confirmation window shows. */
-export interface PasskeyPrompt {
-  origin: string;
-  rpId: string;
-  locked: boolean;
-  entries: { entryId: string; title: string; username: string }[];
-}
+export type PasskeyPrompt =
+  | {
+      kind: 'get';
+      origin: string;
+      rpId: string;
+      locked: boolean;
+      entries: { entryId: string; title: string; username: string }[];
+    }
+  | {
+      kind: 'create';
+      origin: string;
+      rpId: string;
+      locked: boolean;
+      /** site name and account from the page's request (display only) */
+      rpName: string;
+      userName: string;
+      userDisplayName: string;
+      /** the vault already holds a passkey the site listed in excludeCredentials */
+      excluded: boolean;
+      /** logins for this site without a passkey, where the new one can be saved */
+      targets: { entryId: string; title: string; username: string }[];
+    };
 
-/** Use a passkey from the vault, hand over to the browser (device / security key), or refuse. */
-export type PasskeyAnswer = { entryId: string } | 'fallback' | 'cancel';
+/**
+ * Sign in with a passkey (`entryId`), save a new one (`saveTo`: an entry id or "new"),
+ * hand over to the browser (device / security key), or refuse.
+ */
+export type PasskeyAnswer = { entryId: string } | { saveTo: string } | 'fallback' | 'cancel';
 
 /** Methods for content scripts; URL/tab come from the sender. */
 export interface ContentRpcMethods {
@@ -114,6 +133,8 @@ export interface ContentRpcMethods {
   promptAction: { args: [promptId: string, action: PromptAction]; result: { ok: boolean; error?: string } };
   /** the page called navigator.credentials.get(); resolves once the user decided */
   passkeyGet: { args: [pageRequestId: string, request: PageGetRequest]; result: PageGetResult };
+  /** the page called navigator.credentials.create() */
+  passkeyCreate: { args: [pageRequestId: string, request: PageCreateRequest]; result: PageCreateResult };
   /** the page aborted that call */
   passkeyCancel: { args: [pageRequestId: string]; result: void };
 }
@@ -130,6 +151,7 @@ export const CONTENT_RPC_METHODS: readonly ContentRpcName[] = [
   'captureLogin',
   'promptAction',
   'passkeyGet',
+  'passkeyCreate',
   'passkeyCancel',
 ];
 

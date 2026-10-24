@@ -13,6 +13,7 @@ use tauri::ipc::{CallbackFn, InvokeBody};
 use tauri::test::{get_ipc_response, mock_builder, mock_context, noop_assets, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
 use tauri::Manager;
+use uuid::Uuid;
 use vault_ipc::{read_frame, socket_name, write_frame};
 
 use crate::state::AppState;
@@ -357,6 +358,60 @@ fn backend_end_to_end() {
             signed.extend_from_slice(&client_data_hash);
             let sig = p256::ecdsa::Signature::from_der(&sig).unwrap();
             p256::ecdsa::VerifyingKey::from(&pk_key).verify(&signed, &sig).expect("signature verifies");
+        }
+
+        // Registering passkeys: a new item for a site without one.
+        let user_id = B64URL.encode(b"user-1");
+        let create = |n: &str, extra: Value| {
+            let mut req = json!({ "id": n, "action": "passkey-create", "origin": "https://login.example.com", "rpId": "example.com", "rpName": "Example", "userId": user_id, "userName": "alice@example.com" });
+            req.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+            req
+        };
+        let r = call(&mut conn, &sbox, client_id, create("c1", json!({}))).await;
+        assert_eq!(r["ok"], true, "{r}");
+        assert_eq!(r["publicKeyAlgorithm"], -7);
+        let created_cred = r["credentialId"].as_str().unwrap().to_string();
+        let created_entry = r["entryId"].as_str().unwrap().to_string();
+        let public_key = {
+            use p256::pkcs8::DecodePublicKey;
+            p256::ecdsa::VerifyingKey::from_public_key_der(&B64URL.decode(r["publicKey"].as_str().unwrap()).unwrap()).unwrap()
+        };
+        // ...which then signs in, verifiable with the public key handed to the site.
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "c2", "action": "passkey-list", "origin": "https://login.example.com", "rpId": "example.com", "allowCredentials": [created_cred] })).await;
+        assert_eq!(r["entries"][0]["entryId"], created_entry.as_str());
+        assert_eq!(r["entries"][0]["title"], "Example");
+        assert_eq!(r["entries"][0]["username"], "alice@example.com");
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "c3", "action": "passkey-sign", "origin": "https://login.example.com", "rpId": "example.com", "entryId": created_entry, "clientDataHash": B64URL.encode(client_data_hash) })).await;
+        {
+            use p256::ecdsa::signature::Verifier;
+            let mut signed = B64URL.decode(r["authenticatorData"].as_str().unwrap()).unwrap();
+            signed.extend_from_slice(&client_data_hash);
+            let sig = p256::ecdsa::Signature::from_der(&B64URL.decode(r["signature"].as_str().unwrap()).unwrap()).unwrap();
+            public_key.verify(&signed, &sig).expect("new passkey signs in");
+        }
+        assert_eq!(r["userHandle"], user_id.as_str());
+        // The site says this account already has that credential: refused.
+        let r = call(&mut conn, &sbox, client_id, create("c4", json!({ "excludeCredentials": [created_cred] }))).await;
+        assert_eq!(r["code"], "excluded");
+        // An entry that already holds a passkey is never overwritten.
+        let r = call(&mut conn, &sbox, client_id, create("c5", json!({ "entryId": entry_id }))).await;
+        assert_eq!(r["code"], "already-exists");
+        // Another site cannot create passkeys for this RP.
+        let r = call(&mut conn, &sbox, client_id, create("c6", json!({ "origin": "https://evil.example" }))).await;
+        assert_eq!(r["ok"], false);
+        // Attaching to an existing login keeps its password and shows up in get-logins.
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "c7", "action": "passkey-create", "origin": "https://login.newsite.example:8443", "rpId": "newsite.example", "userId": user_id, "userName": "me@new.example", "entryId": new_id })).await;
+        assert_eq!(r["entryId"], new_id.as_str(), "{r}");
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "c8", "action": "get-logins", "url": "https://login.newsite.example:8443/" })).await;
+        assert_eq!(r["entries"][0]["passkey"], true);
+        assert_eq!(r["entries"][0]["password"], "second");
+        // Written to disk.
+        {
+            let creds = vault_core::Credentials::password("pw");
+            let disk = vault_core::Vault::open(&std::fs::read(&vault_path_for_ipc).unwrap(), &creds).unwrap();
+            let saved = disk.item(Uuid::parse_str(&created_entry).unwrap()).unwrap();
+            assert_eq!(vault_core::passkey::Passkey::from_item(&saved).unwrap().rp_id, "example.com");
+            assert!(saved.tags.contains(&"Passkey".to_string()));
         }
 
         let r = call(&mut conn, &sbox, client_id, json!({ "id": "7", "action": "lock" })).await;

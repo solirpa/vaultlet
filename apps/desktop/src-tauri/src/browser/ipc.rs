@@ -216,6 +216,7 @@ fn login_entry(i: &vault_core::Item) -> Value {
         "password": i.password,
         "totp": i.has_totp(),
         "url": i.urls.first().cloned().unwrap_or_default(),
+        "passkey": i.fields.iter().any(|f| f.name.starts_with("KPEX_PASSKEY_")),
     })
 }
 
@@ -538,6 +539,96 @@ async fn handle_request<R: Runtime>(app: &AppHandle<R>, session: &mut Session, r
                         "authenticatorData": B64URL.encode(&a.authenticator_data),
                         "signature": B64URL.encode(&a.signature),
                         "userHandle": a.user_handle.map(|h| B64URL.encode(h)),
+                    })
+                }
+                Err(e) => err(&id, e.code(), &e.to_string()),
+            }
+        }
+        "passkey-create" => {
+            let origin = req.get("origin").and_then(Value::as_str).unwrap_or("");
+            let rp_id = req.get("rpId").and_then(Value::as_str).unwrap_or("").to_ascii_lowercase();
+            let rp_name = req.get("rpName").and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty());
+            let user_name = req.get("userName").and_then(Value::as_str).unwrap_or("").trim().to_string();
+            let user_id = req.get("userId").and_then(Value::as_str).and_then(|u| B64URL.decode(u.trim_end_matches('=')).ok());
+            let entry_id = req.get("entryId").and_then(Value::as_str).filter(|s| !s.is_empty());
+            let excluded: Vec<Vec<u8>> = req
+                .get("excludeCredentials")
+                .and_then(Value::as_array)
+                .map(|a| a.iter().filter_map(Value::as_str).filter_map(passkey::decode_credential_id).collect())
+                .unwrap_or_default();
+            if !passkey::rp_id_allowed(&rp_id, origin) {
+                return err(&id, "invalid-argument", "RP ID is not valid for this origin");
+            }
+            let Some(user_id) = user_id.filter(|u| !u.is_empty() && u.len() <= 64) else {
+                return err(&id, "invalid-argument", "bad user id");
+            };
+            state.touch_activity().await;
+            let result = {
+                let mut guard = state.vault.lock().await;
+                let Some(u) = guard.as_mut() else {
+                    return err(&id, "locked", "vault is locked");
+                };
+                let items = u.vault.items();
+                let already = items
+                    .iter()
+                    .filter(|i| !i.deleted)
+                    .filter_map(passkey::Passkey::from_item)
+                    .any(|pk| pk.rp_id == rp_id && excluded.contains(&pk.credential_id));
+                if already {
+                    return err(&id, "excluded", "a passkey for this account is already in the vault");
+                }
+                let mut item = match entry_id {
+                    Some(eid) => {
+                        let Some(item) = Uuid::parse_str(eid).ok().and_then(|uuid| u.vault.item(uuid)).filter(|i| !i.deleted) else {
+                            return err(&id, "not-found", "no such entry");
+                        };
+                        // Never overwrite a passkey: it may be the only way into that account.
+                        if item.fields.iter().any(|f| f.name.starts_with("KPEX_PASSKEY_")) {
+                            return err(&id, "already-exists", "this entry already has a passkey");
+                        }
+                        item
+                    }
+                    None => {
+                        let mut item = vault_core::Item::new(vault_core::ItemKind::Login, rp_name.unwrap_or(&rp_id).to_string());
+                        item.urls = vec![origin.to_string()];
+                        item
+                    }
+                };
+                let reg = match passkey::register(&rp_id, &passkey::NewPasskeyUser { id: user_id, name: user_name.clone() }) {
+                    Ok(r) => r,
+                    Err(e) => return err(&id, e.code(), &e.to_string()),
+                };
+                if item.username.is_empty() {
+                    item.username = user_name;
+                }
+                item.fields.extend(reg.fields.clone());
+                if !item.tags.iter().any(|t| t == "Passkey") {
+                    item.tags.push("Passkey".into());
+                }
+                match u.vault.upsert_item(item) {
+                    Ok(saved) => match crate::store::write_vault(u).await {
+                        Ok(()) => Ok((saved.id, reg)),
+                        Err(e) => Err(e),
+                    },
+                    Err(e) => Err(e),
+                }
+            };
+            match result {
+                Ok((entry, reg)) => {
+                    let _ = app.emit("items:changed", ());
+                    state.push(PushEvent::ItemsChanged);
+                    if state.settings.lock().await.vault.mode == crate::settings::SyncMode::Webdav {
+                        crate::store::sync_in_background(app);
+                    }
+                    json!({
+                        "id": id,
+                        "ok": true,
+                        "entryId": entry.to_string(),
+                        "credentialId": B64URL.encode(&reg.credential_id),
+                        "authenticatorData": B64URL.encode(&reg.authenticator_data),
+                        "attestationObject": B64URL.encode(&reg.attestation_object),
+                        "publicKey": B64URL.encode(&reg.public_key_spki),
+                        "publicKeyAlgorithm": passkey::COSE_ES256,
                     })
                 }
                 Err(e) => err(&id, e.code(), &e.to_string()),
