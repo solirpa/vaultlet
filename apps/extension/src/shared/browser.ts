@@ -11,7 +11,10 @@ declare global {
 
 export const ext: typeof chrome = (globalThis.browser ?? globalThis.chrome) as typeof chrome;
 
-export const isFirefox = typeof globalThis.browser !== 'undefined' && !!globalThis.browser?.runtime;
+// Newer Chrome also exposes a Promise-based `browser.*`, so its presence alone does not mean
+// Firefox. `runtime.getBrowserInfo` only exists in Firefox.
+export const isFirefox =
+  typeof (globalThis.browser?.runtime as { getBrowserInfo?: unknown } | undefined)?.getBrowserInfo === 'function';
 
 export function detectBrowserName(): string {
   if (isFirefox) return 'Firefox';
