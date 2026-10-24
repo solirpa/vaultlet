@@ -414,6 +414,36 @@ fn backend_end_to_end() {
             assert!(saved.tags.contains(&"Passkey".to_string()));
         }
 
+        // A slow WebDAV server must not stall the browser: sync talks to the network without
+        // holding the vault lock.
+        {
+            let dav = slow_webdav(Duration::from_millis(2000)).await;
+            let state = handle.state::<AppState>();
+            {
+                let mut s = state.settings.lock().await;
+                s.vault.mode = crate::settings::SyncMode::Webdav;
+                s.vault.webdav = Some(crate::settings::WebDavSettings { url: dav.url.clone(), username: "u".into(), remote_path: "/Vaultlet/Vaultlet.kdbx".into() });
+            }
+            state.secrets.set_file(crate::store::WEBDAV_PASSWORD_KEY, "p").unwrap();
+            let sync_app = handle.clone();
+            let sync = tauri::async_runtime::spawn(async move { crate::store::sync_now(&sync_app).await });
+            tokio::time::sleep(Duration::from_millis(300)).await; // sync is now waiting on the server
+            let started = std::time::Instant::now();
+            let r = call(&mut conn, &sbox, client_id, json!({ "id": "s1", "action": "get-logins", "url": "https://github.com" })).await;
+            let took = started.elapsed();
+            assert_eq!(r["ok"], true);
+            assert!(took < Duration::from_millis(1000), "get-logins waited {took:?} behind the WebDAV sync");
+            let status = sync.await.unwrap();
+            assert_eq!(status.state, crate::state::SyncState::Idle, "{status:?}");
+            // Pulled (404), created the folder and uploaded the vault.
+            let methods = dav.methods.lock().unwrap().clone();
+            assert!(methods.iter().any(|m| m == "PUT"), "{methods:?}");
+            assert!(state.vault.lock().await.as_ref().unwrap().etag.is_some());
+            let mut s = state.settings.lock().await;
+            s.vault.mode = crate::settings::SyncMode::Folder;
+            s.vault.webdav = None;
+        }
+
         let r = call(&mut conn, &sbox, client_id, json!({ "id": "7", "action": "lock" })).await;
         assert_eq!(r["ok"], true);
         let r = call(&mut conn, &sbox, client_id, json!({ "id": "8", "action": "get-logins", "url": "https://github.com" })).await;
@@ -461,4 +491,70 @@ fn backend_end_to_end() {
     // Settings file and paired list were persisted.
     assert!(Path::new(&root.join("config").join("settings.json")).exists());
     assert!(Path::new(&root.join("config").join("paired.json")).exists());
+}
+
+struct SlowDav {
+    url: String,
+    methods: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+}
+
+/// A WebDAV server that answers every request after `delay` (one file, one folder level).
+async fn slow_webdav(delay: Duration) -> SlowDav {
+    use std::collections::HashSet;
+    use std::sync::{Arc, Mutex};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}/dav/", listener.local_addr().unwrap());
+    let methods = Arc::new(Mutex::new(Vec::new()));
+    let seen = methods.clone();
+    let exists: Arc<Mutex<HashSet<String>>> = Arc::default();
+    tokio::spawn(async move {
+        loop {
+            let (mut sock, _) = listener.accept().await.unwrap();
+            let (seen, exists) = (seen.clone(), exists.clone());
+            tokio::spawn(async move {
+                let mut buf = Vec::new();
+                let mut chunk = [0u8; 8192];
+                let (head_len, body_len) = loop {
+                    let n = sock.read(&mut chunk).await.unwrap_or(0);
+                    if n == 0 {
+                        return;
+                    }
+                    buf.extend_from_slice(&chunk[..n]);
+                    if let Some(i) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                        let head = String::from_utf8_lossy(&buf[..i]).to_lowercase();
+                        let len = head.lines().find_map(|l| l.strip_prefix("content-length:")).map(|v| v.trim().parse().unwrap()).unwrap_or(0);
+                        break (i + 4, len);
+                    }
+                };
+                while buf.len() < head_len + body_len {
+                    let n = sock.read(&mut chunk).await.unwrap_or(0);
+                    if n == 0 {
+                        break;
+                    }
+                    buf.extend_from_slice(&chunk[..n]);
+                }
+                let head = String::from_utf8_lossy(&buf[..head_len]).to_string();
+                let mut first = head.lines().next().unwrap_or("").split(' ');
+                let method = first.next().unwrap_or("").to_string();
+                let path = first.next().unwrap_or("").trim_end_matches('/').to_string();
+                seen.lock().unwrap().push(method.clone());
+                tokio::time::sleep(delay).await;
+                let status = {
+                    let mut exists = exists.lock().unwrap();
+                    match method.as_str() {
+                        "MKCOL" | "PUT" => {
+                            exists.insert(path);
+                            "201 Created"
+                        }
+                        _ if exists.contains(&path) => "200 OK",
+                        _ => "404 Not Found",
+                    }
+                };
+                let resp = format!("HTTP/1.1 {status}\r\nETag: \"v1\"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                let _ = sock.write_all(resp.as_bytes()).await;
+            });
+        }
+    });
+    SlowDav { url, methods }
 }

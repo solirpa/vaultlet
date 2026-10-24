@@ -99,6 +99,8 @@ pub struct AppState {
     pub settings: Mutex<Settings>,
     pub vault: Mutex<Option<Unlocked>>,
     pub sync: Mutex<SyncStatus>,
+    /// Held for the whole of a WebDAV sync, which only takes `vault` briefly.
+    pub webdav_sync: Mutex<()>,
     pub paired: Mutex<Vec<PairedBrowser>>,
     pub pairing: Mutex<HashMap<String, oneshot::Sender<bool>>>,
     pub app_secret: crypto_box::SecretKey,

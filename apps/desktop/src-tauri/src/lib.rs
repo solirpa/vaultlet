@@ -59,6 +59,7 @@ pub fn configure<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
                 settings: Mutex::new(settings),
                 vault: Mutex::new(None),
                 sync: Mutex::new(SyncStatus::idle(mode)),
+                webdav_sync: Mutex::new(()),
                 paired: Mutex::new(paired),
                 pairing: Mutex::new(Default::default()),
                 app_secret,

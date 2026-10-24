@@ -182,66 +182,99 @@ pub async fn webdav_fetch_to_cache<R: Runtime>(app: &AppHandle<R>) -> Result<boo
     }
 }
 
+/// Pull from / push to the WebDAV server.
+///
+/// The vault lock is only held to snapshot and to merge, never across network requests:
+/// everything else (the UI, the browser extension) waits on that lock, and a slow server
+/// would otherwise stall them until the request times out.
 async fn sync_webdav<R: Runtime>(app: &AppHandle<R>) -> Result<()> {
     let state = app.state::<AppState>();
+    // One WebDAV sync at a time; the vault lock no longer serialises them.
+    let _running = state.webdav_sync.lock().await;
     let settings = state.settings.lock().await.clone();
     let (client, remote) = webdav_client(&settings, &state)?;
-    let mut guard = state.vault.lock().await;
-    let Some(u) = guard.as_mut() else {
-        return Ok(());
-    };
     let mut attempts = 0;
     let mut changed_locally = false;
     loop {
-        // Pull.
-        match client.get(&remote, u.etag.as_deref()).await? {
-            GetResult::NotModified => {}
-            GetResult::NotFound => {
-                u.etag = None;
-                u.needs_upload = true;
-            }
-            GetResult::Modified { bytes, etag } => {
-                let remote_vault = open_bytes(bytes.clone(), &u.creds).await?;
-                let report = u.vault.merge_from(&remote_vault);
-                changed_locally |= !report.is_empty();
-                let mut probe = remote_vault;
-                u.needs_upload = !probe.merge_from(&u.vault).is_empty();
-                u.etag = etag;
-                if u.needs_upload {
-                    let merged = serialize(&u.vault, &u.creds).await?;
-                    atomic_write(&u.file, &merged)?;
-                } else {
-                    atomic_write(&u.file, &bytes)?;
+        // Pull (without the lock).
+        let Some((etag, creds)) = state.vault.lock().await.as_ref().map(|u| (u.etag.clone(), u.creds.clone())) else {
+            return Ok(());
+        };
+        let pulled = client.get(&remote, etag.as_deref()).await?;
+        let remote_vault = match &pulled {
+            GetResult::Modified { bytes, .. } => Some(open_bytes(bytes.clone(), &creds).await?),
+            _ => None,
+        };
+
+        // Merge, and prepare the upload, under the lock.
+        let upload = {
+            let mut guard = state.vault.lock().await;
+            let Some(u) = guard.as_mut() else {
+                return Ok(()); // locked meanwhile
+            };
+            match pulled {
+                GetResult::NotModified => {}
+                GetResult::NotFound => {
+                    u.etag = None;
+                    u.needs_upload = true;
                 }
-                u.vault.mark_saved();
-                u.fingerprint = file_fingerprint(&u.file).ok();
+                GetResult::Modified { bytes, etag } => {
+                    let remote_vault = remote_vault.expect("decrypted above");
+                    let report = u.vault.merge_from(&remote_vault);
+                    changed_locally |= !report.is_empty();
+                    let mut probe = remote_vault;
+                    u.needs_upload |= !probe.merge_from(&u.vault).is_empty() || u.vault.has_unsaved_changes();
+                    u.etag = etag;
+                    if u.needs_upload {
+                        let merged = serialize(&u.vault, &u.creds).await?;
+                        atomic_write(&u.file, &merged)?;
+                    } else {
+                        atomic_write(&u.file, &bytes)?;
+                    }
+                    u.vault.mark_saved();
+                    u.fingerprint = file_fingerprint(&u.file).ok();
+                }
             }
-        }
-        // Push.
-        if !(u.needs_upload || u.vault.has_unsaved_changes()) {
-            break;
-        }
-        let bytes = serialize(&u.vault, &u.creds).await?;
-        atomic_write(&u.file, &bytes)?;
-        u.vault.mark_saved();
-        u.fingerprint = file_fingerprint(&u.file).ok();
-        client.ensure_parents(&remote).await?;
-        match client.put(&remote, bytes, u.etag.as_deref()).await {
-            Ok(etag) => {
-                u.etag = etag;
-                u.needs_upload = false;
+            if !(u.needs_upload || u.vault.has_unsaved_changes()) {
+                break;
+            }
+            let bytes = serialize(&u.vault, &u.creds).await?;
+            atomic_write(&u.file, &bytes)?;
+            u.vault.mark_saved();
+            u.fingerprint = file_fingerprint(&u.file).ok();
+            // Edits made while the upload is in flight set this again.
+            u.needs_upload = false;
+            (bytes, u.etag.clone())
+        };
+
+        // Push (without the lock).
+        let (bytes, base_etag) = upload;
+        let pushed = match client.ensure_parents(&remote).await {
+            Ok(()) => client.put(&remote, bytes, base_etag.as_deref()).await,
+            Err(e) => Err(e),
+        };
+        let mut guard = state.vault.lock().await;
+        let Some(u) = guard.as_mut() else {
+            return Ok(());
+        };
+        match pushed {
+            Ok(new_etag) => {
+                u.etag = new_etag;
                 break;
             }
             Err(Error::PreconditionFailed) if attempts < 3 => {
                 attempts += 1;
+                u.needs_upload = true;
                 u.etag = None; // force a full GET next round
-                continue;
             }
-            Err(e) => return Err(e),
+            Err(e) => {
+                u.needs_upload = true;
+                return Err(e);
+            }
         }
     }
-    store_etag(&state.paths.data_dir, u.etag.as_deref());
-    drop(guard);
+    let etag = state.vault.lock().await.as_ref().and_then(|u| u.etag.clone());
+    store_etag(&state.paths.data_dir, etag.as_deref());
     if changed_locally {
         let _ = app.emit("items:changed", ());
         state.push(PushEvent::ItemsChanged);
