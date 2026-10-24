@@ -99,6 +99,16 @@ const en = {
   'save.errExpired': 'This offer has expired.',
   'save.errGeneric': 'Could not save to Vaultlet.',
   'save.thisSite': 'this site',
+  // passkey confirmation window
+  'passkey.title': 'Sign in with a passkey',
+  'passkey.choose': 'Choose a passkey saved in Vaultlet',
+  'passkey.lockedHint': 'Unlock Vaultlet to use a passkey saved there, or use another device.',
+  'passkey.none': 'No passkey for this site in Vaultlet.',
+  'passkey.otherDevice': 'Use another device or security key',
+  'passkey.cancel': 'Cancel',
+  'passkey.expired': 'This sign-in request has expired',
+  'passkey.close': 'Close',
+  'passkey.errSign': 'Vaultlet could not sign in with this passkey.',
 } as const;
 
 export type MsgKey = keyof typeof en;
@@ -191,6 +201,15 @@ const zh: Partial<Record<MsgKey, string>> = {
   'save.errExpired': '此提示已过期。',
   'save.errGeneric': '无法保存到 Vaultlet。',
   'save.thisSite': '此网站',
+  'passkey.title': '使用通行密钥登录',
+  'passkey.choose': '选择保存在 Vaultlet 中的通行密钥',
+  'passkey.lockedHint': '解锁 Vaultlet 以使用其中保存的通行密钥，或改用其他设备。',
+  'passkey.none': 'Vaultlet 中没有此网站的通行密钥。',
+  'passkey.otherDevice': '使用其他设备或安全密钥',
+  'passkey.cancel': '取消',
+  'passkey.expired': '此登录请求已过期',
+  'passkey.close': '关闭',
+  'passkey.errSign': 'Vaultlet 无法使用此通行密钥登录。',
 };
 
 export type Lang = 'en' | 'zh';

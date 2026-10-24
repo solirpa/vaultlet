@@ -54,7 +54,9 @@ export type Action =
   | 'save-login'
   | 'list'
   | 'get-entry'
-  | 'get-icon';
+  | 'get-icon'
+  | 'passkey-list'
+  | 'passkey-sign';
 
 export type Request =
   | { id: string; action: 'associate' }
@@ -68,7 +70,18 @@ export type Request =
   | { id: string; action: 'list' }
   | { id: string; action: 'get-entry'; entryId: string }
   | { id: string; action: 'get-icon'; host: string }
-  | ({ id: string; action: 'save-login' } & SaveLoginInput);
+  | ({ id: string; action: 'save-login' } & SaveLoginInput)
+  | { id: string; action: 'passkey-list'; origin: string; rpId: string; allowCredentials?: string[] }
+  | { id: string; action: 'passkey-sign'; origin: string; rpId: string; entryId: string; clientDataHash: string };
+
+/** A passkey the app holds for a relying party (`passkey-list`). No key material. */
+export interface PasskeyCandidate {
+  entryId: string;
+  title: string;
+  username: string;
+  /** base64url */
+  credentialId: string;
+}
 
 /**
  * `save-login`: with `entryId` the app updates that login's username/password
@@ -164,6 +177,17 @@ export interface GetTotpResponse extends OkResponse {
   period?: number;
 }
 
+export interface PasskeyListResponse extends OkResponse {
+  entries: PasskeyCandidate[];
+}
+/** `passkey-sign`: the app signs authenticatorData ‖ clientDataHash; all binary values base64url. */
+export interface PasskeySignResponse extends OkResponse {
+  credentialId: string;
+  authenticatorData: string;
+  signature: string;
+  userHandle: string | null;
+}
+
 export type Response =
   | OkResponse
   | ErrResponse
@@ -174,7 +198,9 @@ export type Response =
   | ListResponse
   | GetEntryResponse
   | GetIconResponse
-  | SaveLoginResponse;
+  | SaveLoginResponse
+  | PasskeyListResponse
+  | PasskeySignResponse;
 
 export type PushEventName = 'locked' | 'unlocked' | 'items-changed';
 export interface PushEvent {

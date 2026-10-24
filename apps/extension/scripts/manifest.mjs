@@ -30,6 +30,21 @@ const common = {
       run_at: 'document_idle',
       all_frames: true,
     },
+    // Passkeys: wrap navigator.credentials.get() in the page's own world before page scripts
+    // run, and relay its requests through an isolated-world bridge.
+    {
+      matches: ['https://*/*', 'http://localhost/*', 'http://*.localhost/*'],
+      js: ['passkey-page.js'],
+      run_at: 'document_start',
+      all_frames: true,
+      world: 'MAIN',
+    },
+    {
+      matches: ['https://*/*', 'http://localhost/*', 'http://*.localhost/*'],
+      js: ['passkey-bridge.js'],
+      run_at: 'document_start',
+      all_frames: true,
+    },
   ],
 };
 
@@ -47,7 +62,8 @@ export function firefoxManifest() {
     ...common,
     background: { scripts: ['background.js'] },
     browser_specific_settings: {
-      gecko: { id: 'vaultlet@vaultlet.app', strict_min_version: '115.0' },
+      // 128: content scripts in the page's world (passkeys)
+      gecko: { id: 'vaultlet@vaultlet.app', strict_min_version: '128.0' },
     },
   };
 }

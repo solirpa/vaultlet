@@ -318,9 +318,6 @@ fn parse_json(json: &str) -> Result<ImportResult> {
                     Some(fields) => {
                         item.fields.extend(fields);
                         item.tags.push("Passkey".into());
-                        result.skipped.push(format!(
-                            "{title}: passkey stored in KeePassXC format (usable from KeePassXC-Browser; Vaultlet's own extension does not fill passkeys yet)"
-                        ));
                     }
                     None => result.skipped.push(format!("{title}: passkey (FIDO2 credential) could not be converted")),
                 }
@@ -373,7 +370,8 @@ fn parse_json(json: &str) -> Result<ImportResult> {
 fn passkey_fields(cred: &Json) -> Option<Vec<Field>> {
     let get = |k: &str| cred.get(k).and_then(Json::as_str).map(str::to_string);
     let key_value = get("keyValue")?;
-    let credential_id = get("credentialId")?;
+    // Bitwarden exports the ID as a GUID or `b64.<base64url>`; KeePassXC stores base64url.
+    let credential_id = crate::passkey::encode_credential_id(&crate::passkey::decode_credential_id(&get("credentialId")?)?);
     let rp_id = get("rpId")?;
     // Bitwarden stores the PKCS#8 private key base64url-encoded; KeePassXC wants PEM.
     let der = base64::engine::general_purpose::URL_SAFE_NO_PAD
@@ -724,9 +722,11 @@ mod tests {
 
         let bare = r.items.iter().find(|i| i.title == "Bare TOTP").unwrap();
         assert!(bare.totp.as_deref().unwrap().contains("secret=JBSWY3DPEHPK3PXP"));
-        assert!(r.skipped.iter().any(|s| s.contains("passkey")));
         let pk = r.items.iter().find(|i| i.title == "Passkey site").unwrap();
         assert!(pk.tags.contains(&"Passkey".to_string()));
+        // The Bitwarden GUID becomes its 16 raw bytes in base64url, as KeePassXC stores it.
+        assert!(pk.fields.iter().any(|f| f.name == "KPEX_PASSKEY_CREDENTIAL_ID" && f.value == "AAAAAAAAAAAAAAAAAAAAAA"));
+        assert!(crate::passkey::Passkey::from_item(pk).is_some());
         let pem = pk.fields.iter().find(|f| f.name == "KPEX_PASSKEY_PRIVATE_KEY_PEM").unwrap();
         assert!(pem.protected && pem.value.starts_with("-----BEGIN PRIVATE KEY-----"));
         assert!(pk.fields.iter().any(|f| f.name == "KPEX_PASSKEY_RELYING_PARTY" && f.value == "passkey.example"));

@@ -67,6 +67,7 @@ async function buildPages() {
         input: {
           popup: resolve(root, 'src/popup/index.html'),
           options: resolve(root, 'src/options/index.html'),
+          passkey: resolve(root, 'src/passkey/index.html'),
         },
         output: {
           entryFileNames: 'assets/[name].js',
@@ -85,6 +86,8 @@ async function buildPages() {
 
 await buildScript('background', 'src/background/index.ts');
 await buildScript('content', 'src/content/index.ts');
+await buildScript('passkey-page', 'src/passkey/page.ts');
+await buildScript('passkey-bridge', 'src/passkey/bridge.ts');
 await buildPages();
 
 // Static assets

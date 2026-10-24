@@ -44,6 +44,7 @@ reqwest = { version = "0.13", default-features = false, features = ["rustls", "w
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }
 tempfile = "3"
+p256 = { version = "0.13", features = ["ecdsa", "pkcs8", "pem"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"

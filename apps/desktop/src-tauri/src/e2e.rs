@@ -18,6 +18,7 @@ use vault_ipc::{read_frame, socket_name, write_frame};
 use crate::state::AppState;
 
 const B64: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+const B64URL: base64::engine::GeneralPurpose = base64::engine::general_purpose::URL_SAFE_NO_PAD;
 const FIXTURE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../crates/vault-core/tests/fixtures/bitwarden.json");
 
 fn invoke(webview: &tauri::WebviewWindow<tauri::test::MockRuntime>, cmd: &str, args: Value) -> Result<Value, Value> {
@@ -307,6 +308,55 @@ fn backend_end_to_end() {
             let disk = vault_core::Vault::open(&std::fs::read(&vault_path_for_ipc).unwrap(), &creds).unwrap();
             let saved = disk.items().into_iter().find(|i| i.title == "login.newsite.example").unwrap();
             assert_eq!(saved.password, "second");
+        }
+
+        // Passkeys: an entry imported by an older Vaultlet (Bitwarden GUID credential ID).
+        let pk_key = p256::ecdsa::SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+        {
+            use p256::pkcs8::EncodePrivateKey;
+            let pem = pk_key.to_pkcs8_pem(p256::pkcs8::LineEnding::LF).unwrap().to_string();
+            let state = handle.state::<AppState>();
+            let mut guard = state.vault.lock().await;
+            let mut item = vault_core::Item::new(vault_core::ItemKind::Login, "AWS");
+            item.fields = vec![
+                vault_core::Field::new("KPEX_PASSKEY_USERNAME", "alice"),
+                vault_core::Field::new("KPEX_PASSKEY_CREDENTIAL_ID", "e8d88789-e916-e196-e3ee-a5ae51df8b8b"),
+                vault_core::Field::protected("KPEX_PASSKEY_PRIVATE_KEY_PEM", pem),
+                vault_core::Field::new("KPEX_PASSKEY_RELYING_PARTY", "aws.amazon.com"),
+            ];
+            guard.as_mut().unwrap().vault.upsert_item(item).unwrap();
+        }
+        let origin = "https://us-east-1.signin.aws.amazon.com";
+        let cred_id = "6NiHiekW4Zbj7qWuUd-Liw"; // the GUID's 16 bytes, base64url
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "p1", "action": "passkey-list", "origin": origin, "rpId": "aws.amazon.com" })).await;
+        let entries = r["entries"].as_array().unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["username"], "alice");
+        assert_eq!(entries[0]["credentialId"], cred_id);
+        let entry_id = entries[0]["entryId"].as_str().unwrap().to_string();
+        // allowCredentials narrows the list.
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "p2", "action": "passkey-list", "origin": origin, "rpId": "aws.amazon.com", "allowCredentials": ["AQID"] })).await;
+        assert!(r["entries"].as_array().unwrap().is_empty());
+        // Another site cannot list or use it.
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "p3", "action": "passkey-list", "origin": "https://evil.example", "rpId": "aws.amazon.com" })).await;
+        assert_eq!(r["ok"], false);
+        let client_data_hash = [42u8; 32];
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "p4", "action": "passkey-sign", "origin": "https://evil.example", "rpId": "aws.amazon.com", "entryId": entry_id, "clientDataHash": B64URL.encode(client_data_hash) })).await;
+        assert_eq!(r["ok"], false);
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "p5", "action": "passkey-sign", "origin": "https://evil.example", "rpId": "evil.example", "entryId": entry_id, "clientDataHash": B64URL.encode(client_data_hash) })).await;
+        assert_eq!(r["code"], "not-found");
+        // The real site gets a signature that verifies against the passkey's public key.
+        let r = call(&mut conn, &sbox, client_id, json!({ "id": "p6", "action": "passkey-sign", "origin": origin, "rpId": "aws.amazon.com", "entryId": entry_id, "clientDataHash": B64URL.encode(client_data_hash) })).await;
+        assert_eq!(r["ok"], true, "{r}");
+        assert_eq!(r["credentialId"], cred_id);
+        let auth_data = B64URL.decode(r["authenticatorData"].as_str().unwrap()).unwrap();
+        let sig = B64URL.decode(r["signature"].as_str().unwrap()).unwrap();
+        {
+            use p256::ecdsa::signature::Verifier;
+            let mut signed = auth_data.clone();
+            signed.extend_from_slice(&client_data_hash);
+            let sig = p256::ecdsa::Signature::from_der(&sig).unwrap();
+            p256::ecdsa::VerifyingKey::from(&pk_key).verify(&signed, &sig).expect("signature verifies");
         }
 
         let r = call(&mut conn, &sbox, client_id, json!({ "id": "7", "action": "lock" })).await;

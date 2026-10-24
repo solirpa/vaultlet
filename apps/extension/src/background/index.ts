@@ -8,6 +8,7 @@
  *  - context menu "Vaultlet: fill login" on editable fields
  *  - keyboard shortcut "fill-login"
  *  - save / update prompts for submitted logins (./save-flow)
+ *  - passkey sign-in with passkeys stored in the vault (./passkey-flow)
  */
 import { ext, activeTab, getTab, invoke, queryTabs, sendTabMessage } from '../shared/browser';
 import type { LoginEntry, PushEventName } from '../shared/protocol';
@@ -31,6 +32,7 @@ import { BadgeCache, isFillableUrl, setBadge } from './badge';
 import { SaveFlow, type SessionArea } from './save-flow';
 import { ICON_STORAGE_KEY, IconCache, type PersistedIcon } from './icon-cache';
 import { iconHost, normalizeHost } from '../shared/site-icon';
+import { PasskeyFlow } from './passkey-flow';
 
 const CONTEXT_MENU_ID = 'vaultlet-fill-login';
 const FILL_COMMAND = 'fill-login';
@@ -67,6 +69,36 @@ function sessionArea(): SessionArea | undefined {
     remove: (key) => invoke<void>(area, 'remove', key),
   };
 }
+
+// ---- passkeys ----------------------------------------------------------------
+
+const passkeys = new PasskeyFlow(
+  {
+    passkeyList: (origin, rpId, allow) => client.passkeyList(origin, rpId, allow),
+    passkeySign: (origin, rpId, entryId, hash) => client.passkeySign(origin, rpId, entryId, hash),
+    async isPaired() {
+      await client.loadIdentity();
+      return client.paired;
+    },
+  },
+  {
+    async open(requestId) {
+      const win = await invoke<chrome.windows.Window>(ext.windows, 'create', {
+        url: ext.runtime.getURL(`passkey/index.html?id=${encodeURIComponent(requestId)}`),
+        type: 'popup',
+        width: 420,
+        height: 520,
+        focused: true,
+      });
+      return win?.id;
+    },
+    close(windowId) {
+      invoke(ext.windows, 'remove', windowId).catch(() => {});
+    },
+  },
+);
+
+ext.windows.onRemoved.addListener((windowId) => passkeys.windowClosed(windowId));
 
 // ---- site icons ------------------------------------------------------------
 
@@ -199,7 +231,10 @@ ext.tabs.onUpdated.addListener((tabId, info, tab) => {
     if (info.url) badges.forget(tabId);
     if (tab.active) void updateBadgeForTab(tabId, tab.url);
   }
-  if (info.status === 'loading') void saveFlow.onTabLoading(tabId);
+  if (info.status === 'loading') {
+    void saveFlow.onTabLoading(tabId);
+    passkeys.tabGone(tabId);
+  }
   if (info.status === 'complete') void saveFlow.onTabComplete(tabId);
 });
 
@@ -207,6 +242,7 @@ ext.tabs.onRemoved.addListener((tabId) => {
   badges.forget(tabId);
   iconHostsByTab.delete(tabId);
   void saveFlow.drop(tabId);
+  passkeys.tabGone(tabId);
 });
 
 // ---- fill ----------------------------------------------------------------
@@ -340,6 +376,8 @@ interface ContentContext {
   tabId: number;
   frameId: number;
   url: string;
+  /** URL of the tab's top frame */
+  tabUrl: string;
 }
 
 type ContentHandlers = {
@@ -395,6 +433,8 @@ const pageHandlers: PageHandlers = {
     badges.clear();
     return snapshot();
   },
+  passkeyPending: (requestId) => passkeys.prompt(requestId),
+  passkeyAnswer: (requestId, answer) => passkeys.answer(requestId, answer),
 };
 
 const contentHandlers: ContentHandlers = {
@@ -434,6 +474,10 @@ const contentHandlers: ContentHandlers = {
     await saveFlow.capture(ctx.tabId, ctx.url, String(capture.username ?? ''), capture.password);
   },
   promptAction: (ctx, promptId, action) => saveFlow.action(ctx.tabId, promptId, action),
+  passkeyGet: (ctx, pageRequestId, request) => passkeys.get(ctx, String(pageRequestId), request),
+  async passkeyCancel(ctx, pageRequestId) {
+    passkeys.cancelFromPage(ctx.tabId, String(pageRequestId));
+  },
 };
 
 function isExtensionPage(sender: chrome.runtime.MessageSender): boolean {
@@ -454,7 +498,12 @@ function dispatch(req: RpcRequest, sender: chrome.runtime.MessageSender): Promis
   if (sender.id !== ext.runtime.id || sender.tab?.id === undefined || !CONTENT_RPC_METHODS.includes(method)) {
     return Promise.reject(new NativeClientError('forbidden', `method ${String(req.method)} not allowed here`));
   }
-  const ctx: ContentContext = { tabId: sender.tab.id, frameId: sender.frameId ?? 0, url: sender.url ?? '' };
+  const ctx: ContentContext = {
+    tabId: sender.tab.id,
+    frameId: sender.frameId ?? 0,
+    url: sender.url ?? '',
+    tabUrl: sender.tab.url ?? '',
+  };
   const handler = contentHandlers[method] as (ctx: ContentContext, ...a: unknown[]) => Promise<unknown>;
   return handler(ctx, ...args);
 }

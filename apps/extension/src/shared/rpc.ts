@@ -9,6 +9,7 @@
  * another site's logins.
  */
 import type { EntryDetail, LoginEntry, LoginSummary, PushEventName, SaveLoginInput, SaveLoginResult } from './protocol';
+import type { PageGetRequest, PageGetResult } from './webauthn';
 import { sendRuntimeMessage } from './browser';
 
 export type ConnectionState = 'disconnected' | 'connecting' | 'connected';
@@ -81,7 +82,22 @@ export interface PageRpcMethods {
   fillEntry: { args: [tabId: number, entryId: string, notice?: string]; result: { filled: FillOutcome } };
   /** forget keys + clientId; next connect generates a fresh identity */
   resetPairing: { args: []; result: ExtensionState };
+  /** passkey confirmation window: what is being asked (re-lists passkeys while the vault is locked) */
+  passkeyPending: { args: [requestId: string]; result: PasskeyPrompt | null };
+  /** passkey confirmation window: the user's choice */
+  passkeyAnswer: { args: [requestId: string, answer: PasskeyAnswer]; result: void };
 }
+
+/** What the passkey confirmation window shows. */
+export interface PasskeyPrompt {
+  origin: string;
+  rpId: string;
+  locked: boolean;
+  entries: { entryId: string; title: string; username: string }[];
+}
+
+/** Use a passkey from the vault, hand over to the browser (device / security key), or refuse. */
+export type PasskeyAnswer = { entryId: string } | 'fallback' | 'cancel';
 
 /** Methods for content scripts; URL/tab come from the sender. */
 export interface ContentRpcMethods {
@@ -96,6 +112,10 @@ export interface ContentRpcMethods {
   captureLogin: { args: [capture: { username: string; password: string }]; result: void };
   /** user answered (or the card timed out on) a save/update prompt */
   promptAction: { args: [promptId: string, action: PromptAction]; result: { ok: boolean; error?: string } };
+  /** the page called navigator.credentials.get(); resolves once the user decided */
+  passkeyGet: { args: [pageRequestId: string, request: PageGetRequest]; result: PageGetResult };
+  /** the page aborted that call */
+  passkeyCancel: { args: [pageRequestId: string]; result: void };
 }
 
 export type RpcMethods = PageRpcMethods & ContentRpcMethods;
@@ -109,6 +129,8 @@ export const CONTENT_RPC_METHODS: readonly ContentRpcName[] = [
   'icon',
   'captureLogin',
   'promptAction',
+  'passkeyGet',
+  'passkeyCancel',
 ];
 
 export interface RpcRequest<K extends RpcName = RpcName> {

@@ -18,6 +18,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 use vault_core::matching::match_items;
+use vault_core::passkey;
 use vault_ipc::{read_frame, socket_name, write_frame};
 
 use crate::autolock;
@@ -25,6 +26,7 @@ use crate::commands::focus_main_window;
 use crate::state::{AppState, PairedBrowser, PushEvent};
 
 const B64: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+const B64URL: base64::engine::GeneralPurpose = base64::engine::general_purpose::URL_SAFE_NO_PAD;
 const PAIRING_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Load or create the app's X25519 secret key. Kept in a 0600 file rather than the keychain:
@@ -464,6 +466,81 @@ async fn handle_request<R: Runtime>(app: &AppHandle<R>, session: &mut Session, r
             match vault_core::totp::generate(secret, std::time::SystemTime::now()) {
                 Ok(c) => json!({ "id": id, "ok": true, "code": c.code, "remaining": c.remaining, "period": c.period }),
                 Err(e) => err(&id, "totp", &e.to_string()),
+            }
+        }
+        // Passkeys: the extension sends the page origin (taken from the browser, not the page)
+        // and the RP ID the page asked for. Both actions re-check that the origin may act for
+        // that RP, so a paired extension cannot get assertions for other sites.
+        "passkey-list" => {
+            let origin = req.get("origin").and_then(Value::as_str).unwrap_or("");
+            let rp_id = req.get("rpId").and_then(Value::as_str).unwrap_or("").to_ascii_lowercase();
+            if !passkey::rp_id_allowed(&rp_id, origin) {
+                return err(&id, "invalid-argument", "RP ID is not valid for this origin");
+            }
+            let allowed: Vec<Vec<u8>> = req
+                .get("allowCredentials")
+                .and_then(Value::as_array)
+                .map(|a| a.iter().filter_map(Value::as_str).filter_map(passkey::decode_credential_id).collect())
+                .unwrap_or_default();
+            state.touch_activity().await;
+            let guard = state.vault.lock().await;
+            let Some(u) = guard.as_ref() else {
+                return err(&id, "locked", "vault is locked");
+            };
+            let entries: Vec<Value> = u
+                .vault
+                .items()
+                .into_iter()
+                .filter(|i| !i.deleted)
+                .filter_map(|i| Some((passkey::Passkey::from_item(&i)?, i)))
+                .filter(|(pk, _)| pk.rp_id == rp_id)
+                .filter(|(pk, _)| allowed.is_empty() || allowed.contains(&pk.credential_id))
+                .map(|(pk, i)| {
+                    json!({
+                        "entryId": i.id.to_string(),
+                        "title": i.title,
+                        "username": pk.username,
+                        "credentialId": passkey::encode_credential_id(&pk.credential_id),
+                    })
+                })
+                .collect();
+            json!({ "id": id, "ok": true, "entries": entries })
+        }
+        "passkey-sign" => {
+            let origin = req.get("origin").and_then(Value::as_str).unwrap_or("");
+            let rp_id = req.get("rpId").and_then(Value::as_str).unwrap_or("").to_ascii_lowercase();
+            let entry_id = req.get("entryId").and_then(Value::as_str).unwrap_or("");
+            let hash = req.get("clientDataHash").and_then(Value::as_str).and_then(|h| B64URL.decode(h.trim_end_matches('=')).ok());
+            if !passkey::rp_id_allowed(&rp_id, origin) {
+                return err(&id, "invalid-argument", "RP ID is not valid for this origin");
+            }
+            let (Ok(uuid), Some(hash)) = (Uuid::parse_str(entry_id), hash) else {
+                return err(&id, "invalid-argument", "bad entry id or client data hash");
+            };
+            state.touch_activity().await;
+            let mut guard = state.vault.lock().await;
+            let Some(u) = guard.as_mut() else {
+                return err(&id, "locked", "vault is locked");
+            };
+            let Some(pk) = u.vault.item(uuid).filter(|i| !i.deleted).and_then(|i| passkey::Passkey::from_item(&i)) else {
+                return err(&id, "not-found", "no passkey on this entry");
+            };
+            if pk.rp_id != rp_id {
+                return err(&id, "not-found", "no passkey for this site on this entry");
+            }
+            match pk.assert(&hash) {
+                Ok(a) => {
+                    u.vault.touch_used(uuid);
+                    json!({
+                        "id": id,
+                        "ok": true,
+                        "credentialId": B64URL.encode(&a.credential_id),
+                        "authenticatorData": B64URL.encode(&a.authenticator_data),
+                        "signature": B64URL.encode(&a.signature),
+                        "userHandle": a.user_handle.map(|h| B64URL.encode(h)),
+                    })
+                }
+                Err(e) => err(&id, e.code(), &e.to_string()),
             }
         }
         "touch" => {

@@ -24,6 +24,9 @@ import {
   type HelloRequest,
   type HelloResponse,
   type LoginEntry,
+  type PasskeyCandidate,
+  type PasskeyListResponse,
+  type PasskeySignResponse,
   type ProtocolError,
   type PushEventName,
   type Request,
@@ -469,6 +472,33 @@ export class NativeClient {
 
   async unlockRequest(): Promise<void> {
     await this.call({ action: 'unlock-request' });
+  }
+
+  /** Passkeys for `rpId` that `origin` may use (the app re-checks the pair). */
+  async passkeyList(origin: string, rpId: string, allowCredentials: string[]): Promise<PasskeyCandidate[]> {
+    const r = await this.call<PasskeyListResponse>({ action: 'passkey-list', origin, rpId, allowCredentials });
+    return (r.entries ?? []).map((e) => ({
+      entryId: e.entryId,
+      title: e.title ?? '',
+      username: e.username ?? '',
+      credentialId: e.credentialId,
+    }));
+  }
+
+  /** Have the app sign an assertion; `clientDataHash` is SHA-256(clientDataJSON), base64url. */
+  async passkeySign(
+    origin: string,
+    rpId: string,
+    entryId: string,
+    clientDataHash: string,
+  ): Promise<Omit<PasskeySignResponse, 'id' | 'ok'>> {
+    const r = await this.call<PasskeySignResponse>({ action: 'passkey-sign', origin, rpId, entryId, clientDataHash });
+    return {
+      credentialId: r.credentialId,
+      authenticatorData: r.authenticatorData,
+      signature: r.signature,
+      userHandle: r.userHandle ?? null,
+    };
   }
 }
 

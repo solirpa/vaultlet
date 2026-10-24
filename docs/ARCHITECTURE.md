@@ -275,6 +275,10 @@ Chrome 插件 ID 要固定：manifest 里带 `key`（公钥 base64），仓库�
 | `{ id, action:"touch", entryId }` | `{ id, ok:true }` |
 | `{ id, action:"lock" }` | `{ id, ok:true }` |
 | `{ id, action:"unlock-request" }` | app 把窗口带到前台显示解锁界面，`{ id, ok:true }` |
+| `{ id, action:"passkey-list", origin, rpId, allowCredentials? }` | 校验 rpId 对 origin 合法（https 或 localhost，rpId 为 host 或其可注册的上级域，不能是公共后缀）→ `{ id, ok:true, entries:[{ entryId, title, username, credentialId }] }`：该 RP 的通行密钥，不含私钥；`allowCredentials`（base64url）非空时只返回其中的 |
+| `{ id, action:"passkey-sign", origin, rpId, entryId, clientDataHash }` | 同样校验 rpId，且条目的 RP 必须等于 rpId；用 ES256 签 `authenticatorData ‖ clientDataHash` → `{ id, ok:true, credentialId, authenticatorData, signature, userHandle }`（均为 base64url）。私钥不离开桌面端 |
+
+通行密钥按 KeePassXC 格式存在条目的 `KPEX_PASSKEY_*` 字段里（凭据 ID 为 base64url；兼容旧导入留下的 Bitwarden GUID 形式）。扩展侧流程：页面世界的脚本包装 `navigator.credentials.get()`，经隔离世界的桥接脚本交给后台；后台用浏览器给出的发送方 URL 确定 origin、自己构造 clientDataJSON，并弹出扩展自己的确认窗口，用户选中后才请求签名。Vaultlet 里没有匹配的通行密钥、条件式（autofill）请求、跨源 iframe 时交还浏览器原生 WebAuthn。
 
 app → 扩展主动推送：`{ action:"event", event:"locked" | "unlocked" | "items-changed" }`。
 
