@@ -125,7 +125,16 @@ pub fn run() {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env().add_directive("vaultlet=info".parse().unwrap()))
         .init();
 
-    configure(tauri::Builder::default())
+    let mut builder = tauri::Builder::default();
+    // A second copy would fail to claim the browser IPC socket and silently leave the extension
+    // talking to the first one, so hand over to the running window instead. Separate profiles
+    // (`VAULTLET_CONFIG_DIR`) may still run side by side.
+    if std::env::var_os("VAULTLET_CONFIG_DIR").is_none() {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            commands::focus_main_window(app);
+        }));
+    }
+    configure(builder)
         .run(tauri::generate_context!())
         .expect("error while running Vaultlet");
 }

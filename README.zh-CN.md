@@ -82,3 +82,5 @@ cd apps/desktop && pnpm install && pnpm tauri dev
 # 浏览器插件
 cd apps/extension && pnpm install && pnpm build   # 产物在 dist/chrome 与 dist/firefox
 ```
+
+CI 会在每次 push 和 PR 时在 macOS / Windows / Linux 上跑测试。推送 `v0.1.0` 这样的 tag 会构建三个平台的安装包和插件 zip，并附到一个 GitHub Release 草稿上。

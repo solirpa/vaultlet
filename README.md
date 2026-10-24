@@ -82,3 +82,5 @@ cd apps/desktop && pnpm install && pnpm tauri dev
 # Browser extension
 cd apps/extension && pnpm install && pnpm build   # output in dist/chrome and dist/firefox
 ```
+
+CI runs the tests on macOS, Windows and Linux for every push and pull request. Pushing a tag such as `v0.1.0` builds installers for all three platforms plus the extension zips and attaches them to a draft GitHub release.
