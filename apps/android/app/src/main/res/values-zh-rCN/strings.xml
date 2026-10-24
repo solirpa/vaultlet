@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="setup_title">连接你的密码库</string>
+    <string name="setup_body">Vaultlet 通过 WebDAV（例如坚果云）同步。密码库在服务器和手机上都保持加密。</string>
+    <string name="setup_url">服务器地址</string>
+    <string name="setup_user">用户名</string>
+    <string name="setup_app_password">应用密码</string>
+    <string name="setup_app_password_hint">坚果云请使用「账户信息 → 安全选项」里生成的应用密码，不是登录密码。</string>
+    <string name="setup_path">服务器上的密码库文件</string>
+    <string name="setup_connect">连接</string>
+
+    <string name="master_password">主密码</string>
+    <string name="unlock">解锁</string>
+    <string name="unlock_fingerprint">用指纹解锁</string>
+    <string name="sign_out">使用其他密码库</string>
+    <string name="sign_out_confirm">从这台手机上移除密码库？服务器上的副本不受影响。</string>
+    <string name="biometric_title">解锁 Vaultlet</string>
+    <string name="biometric_enable_title">指纹解锁</string>
+    <string name="biometric_enable_body">下次用指纹解锁？主密码会用只有你的指纹才能使用的密钥加密保存。</string>
+    <string name="biometric_enable">开启</string>
+    <string name="biometric_invalidated">这台手机的指纹有变动。请先输入一次主密码，再重新开启指纹解锁。</string>
+    <string name="not_now">暂不</string>
+    <string name="cancel">取消</string>
+    <string name="ok">好</string>
+
+    <string name="search">搜索密码库</string>
+    <string name="lock">锁定</string>
+    <string name="sync_now">立即同步</string>
+    <string name="syncing">正在同步…</string>
+    <string name="sync_failed">同步失败：%1$s</string>
+    <string name="settings_fingerprint">指纹解锁</string>
+    <string name="empty_vault">还没有项目</string>
+    <string name="no_results">没有匹配项</string>
+    <string name="new_login">新建登录</string>
+    <string name="no_username">无用户名</string>
+
+    <string name="username">用户名</string>
+    <string name="password">密码</string>
+    <string name="totp">验证码</string>
+    <string name="websites">网站</string>
+    <string name="notes">备注</string>
+    <string name="fields">其他字段</string>
+    <string name="passkey_saved">已保存通行密钥</string>
+    <string name="copy">复制</string>
+    <string name="copied">已复制%1$s</string>
+    <string name="show">显示</string>
+    <string name="hide">隐藏</string>
+    <string name="open">打开</string>
+    <string name="edit">编辑</string>
+    <string name="back">返回</string>
+    <string name="favorite">收藏</string>
+    <string name="edit_on_desktop">银行卡、身份和笔记请在桌面端编辑。</string>
+
+    <string name="name">名称</string>
+    <string name="generate">生成</string>
+    <string name="length">长度 %1$d</string>
+    <string name="totp_set">已设置</string>
+    <string name="totp_replace">替换</string>
+    <string name="totp_remove">移除</string>
+    <string name="totp_removed">保存后将移除</string>
+    <string name="undo">撤销</string>
+    <string name="add_website">添加网址</string>
+    <string name="kept_hint">文件夹、自定义字段和通行密钥会保留。</string>
+    <string name="save">保存</string>
+    <string name="saved">已保存</string>
+    <string name="trash">移到回收站</string>
+    <string name="trash_confirm">把这个项目移到回收站？可以在桌面端恢复。</string>
+    <string name="trashed">已移到回收站</string>
+    <string name="err_title">请填写名称。</string>
+    <string name="err_totp">不是有效的 TOTP 密钥或 otpauth:// 链接。</string>
+
+    <string name="autofill_pick">选择登录信息…</string>
+    <string name="autofill_for">填充到 %1$s</string>
+    <string name="autofill_suggested">推荐</string>
+
+    <!-- design refresh -->
+    <string name="unlock_title">解锁密码库</string>
+    <string name="synced">已同步</string>
+    <string name="more">更多</string>
+    <string name="fingerprint_off">关闭指纹解锁</string>
+    <string name="favorites">收藏</string>
+    <string name="all_items">全部</string>
+    <string name="results">搜索结果</string>
+    <string name="clear">清除</string>
+    <string name="kind_login">登录</string>
+    <string name="kind_note">安全笔记</string>
+    <string name="kind_card">卡片</string>
+    <string name="kind_identity">身份</string>
+    <string name="passkey">通行密钥</string>
+    <string name="account">账号</string>
+    <string name="website">网址</string>
+    <string name="edit_login">编辑登录</string>
+    <string name="remove">删除</string>
+    <string name="regenerate">换一个</string>
+    <string name="autofill_choose">选择登录信息</string>
+</resources>

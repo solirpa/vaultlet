@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Vaultlet</string>
+
+    <!-- setup -->
+    <string name="setup_title">Connect your vault</string>
+    <string name="setup_body">Vaultlet syncs through WebDAV, e.g. 坚果云 (Nutstore). Your vault stays encrypted on the server and on this phone.</string>
+    <string name="setup_url">Server URL</string>
+    <string name="setup_user">Username</string>
+    <string name="setup_app_password">App password</string>
+    <string name="setup_app_password_hint">For 坚果云: an app password from Account → Security, not your login password.</string>
+    <string name="setup_path">Vault file on the server</string>
+    <string name="setup_connect">Connect</string>
+
+    <!-- unlock -->
+    <string name="master_password">Master password</string>
+    <string name="unlock">Unlock</string>
+    <string name="unlock_fingerprint">Unlock with fingerprint</string>
+    <string name="sign_out">Use another vault</string>
+    <string name="sign_out_confirm">Remove the vault from this phone? The copy on the server is not touched.</string>
+    <string name="biometric_title">Unlock Vaultlet</string>
+    <string name="biometric_enable_title">Fingerprint unlock</string>
+    <string name="biometric_enable_body">Unlock with your fingerprint next time? The master password is kept encrypted with a key that only your fingerprint can use.</string>
+    <string name="biometric_enable">Turn on</string>
+    <string name="biometric_invalidated">Fingerprints changed on this phone. Enter the master password once to turn fingerprint unlock on again.</string>
+    <string name="not_now">Not now</string>
+    <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
+
+    <!-- vault -->
+    <string name="search">Search vault</string>
+    <string name="lock">Lock</string>
+    <string name="sync_now">Sync now</string>
+    <string name="syncing">Syncing…</string>
+    <string name="sync_failed">Sync failed: %1$s</string>
+    <string name="settings_fingerprint">Fingerprint unlock</string>
+    <string name="empty_vault">No items yet</string>
+    <string name="no_results">No matches</string>
+    <string name="new_login">New login</string>
+    <string name="no_username">No username</string>
+
+    <!-- item -->
+    <string name="username">Username</string>
+    <string name="password">Password</string>
+    <string name="totp">Verification code</string>
+    <string name="websites">Websites</string>
+    <string name="notes">Notes</string>
+    <string name="fields">Other fields</string>
+    <string name="passkey_saved">Passkey saved</string>
+    <string name="copy">Copy</string>
+    <string name="copied">%1$s copied</string>
+    <string name="show">Show</string>
+    <string name="hide">Hide</string>
+    <string name="open">Open</string>
+    <string name="edit">Edit</string>
+    <string name="back">Back</string>
+    <string name="favorite">Favorite</string>
+    <string name="edit_on_desktop">Cards, identities and notes are edited in the desktop app.</string>
+
+    <!-- editor -->
+    <string name="name">Name</string>
+    <string name="generate">Generate</string>
+    <string name="length">Length %1$d</string>
+    <string name="totp_set">Configured</string>
+    <string name="totp_replace">Replace</string>
+    <string name="totp_remove">Remove</string>
+    <string name="totp_removed">Will be removed when you save</string>
+    <string name="undo">Undo</string>
+    <string name="add_website">Add website</string>
+    <string name="kept_hint">Folders, custom fields and passkeys are kept.</string>
+    <string name="save">Save</string>
+    <string name="saved">Saved</string>
+    <string name="trash">Move to trash</string>
+    <string name="trash_confirm">Move this item to the trash? You can restore it in the desktop app.</string>
+    <string name="trashed">Moved to trash</string>
+    <string name="err_title">Enter a name.</string>
+    <string name="err_totp">Not a TOTP secret or otpauth:// link.</string>
+
+    <!-- autofill -->
+    <string name="autofill_pick">Choose a login…</string>
+    <string name="autofill_for">Fill in %1$s</string>
+    <string name="autofill_suggested">Suggested</string>
+
+    <!-- design refresh -->
+    <string name="unlock_title">Unlock vault</string>
+    <string name="synced">Synced</string>
+    <string name="more">More</string>
+    <string name="fingerprint_off">Turn off fingerprint unlock</string>
+    <string name="favorites">Favorites</string>
+    <string name="all_items">All items</string>
+    <string name="results">Results</string>
+    <string name="clear">Clear</string>
+    <string name="kind_login">Login</string>
+    <string name="kind_note">Secure note</string>
+    <string name="kind_card">Card</string>
+    <string name="kind_identity">Identity</string>
+    <string name="passkey">Passkey</string>
+    <string name="account">Account</string>
+    <string name="website">Website</string>
+    <string name="edit_login">Edit login</string>
+    <string name="remove">Remove</string>
+    <string name="regenerate">Generate another</string>
+    <string name="autofill_choose">Choose a login</string>
+</resources>

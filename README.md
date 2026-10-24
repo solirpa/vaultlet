@@ -7,6 +7,7 @@ A local-first password manager: a serverless alternative to Bitwarden.
 - The vault is a standard **KDBX 4** file (Argon2id + AES-256), compatible with KeePassXC / Strongbox / KeePassium / KeePassDX, so on mobile you can use those clients directly.
 - Sync across devices through your own cloud drive: put the vault in an iCloud Drive / Dropbox / OneDrive folder, or use a WebDAV server (e.g. Nutstore). Conflicts are merged per entry by timestamp.
 - Desktop app: Tauri 2 + React, for macOS / Windows / Linux.
+- Android app: Kotlin + Jetpack Compose on the same Rust core; autofill in apps and browsers, fingerprint unlock, WebDAV sync.
 - Browser extension: Chrome / Edge / Brave / Firefox. It talks to the desktop app over Native Messaging; keys never leave the desktop process.
 - Imports Bitwarden exports (JSON / CSV / password-protected JSON), with TOTP support.
 
@@ -22,8 +23,10 @@ A local-first password manager: a serverless alternative to Bitwarden.
 | `crates/vault-cli` | Debugging CLI |
 | `crates/vault-ipc` | Socket naming and frame format shared by the desktop app and the native host |
 | `crates/native-host` | Browser native messaging host (a pure proxy) |
+| `crates/vault-ffi` | vault-core for the mobile apps (UniFFI bindings) |
 | `apps/desktop` | Tauri desktop app (`src/` frontend, `src-tauri/` backend) |
 | `apps/extension` | Browser extension |
+| `apps/android` | Android app (Kotlin, Jetpack Compose) |
 | `docs/ARCHITECTURE.md` | Architecture and interface contracts |
 
 ## Usage
@@ -47,6 +50,17 @@ Building on Windows requires Rust (MSVC toolchain) and Visual Studio / Build Too
 2. Run `cd apps/extension && pnpm install && pnpm build`, then load the unpacked extension in your browser:
    `apps/extension/dist/chrome` for Chrome / Edge / Brave, `apps/extension/dist/firefox/manifest.json` for Firefox.
 3. Click the extension icon → "Connect to Vaultlet" and approve the pairing in the desktop app.
+
+### Android
+
+```bash
+rustup target add aarch64-linux-android x86_64-linux-android
+cargo install cargo-ndk
+node scripts/build-android-core.mjs        # Rust core -> app/src/main/jniLibs + Kotlin bindings
+cd apps/android && ./gradlew assembleDebug # app/build/outputs/apk/debug/app-debug.apk
+```
+
+Needs the Android SDK (compileSdk 37) and NDK (`ANDROID_HOME`, or `ANDROID_NDK_HOME`), and JDK 17+. On first launch, enter the WebDAV server (e.g. 坚果云 with an app password), the vault's path on it and the master password. The encrypted vault is cached on the phone, so unlocking works offline; changes sync in the background. Turn on autofill in Settings → Passwords & accounts → Autofill service. Web page domains are only trusted from known browsers; other apps match by package name (`androidapp://<package>`, as Bitwarden stores it).
 
 ### Command line
 

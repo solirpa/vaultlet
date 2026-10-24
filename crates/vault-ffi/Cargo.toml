@@ -1,0 +1,28 @@
+[package]
+name = "vault-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "UniFFI bindings of vault-core for the Vaultlet mobile apps"
+
+[lib]
+name = "vault_ffi"
+crate-type = ["cdylib", "lib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "uniffi-bindgen.rs"
+required-features = ["bindgen"]
+
+[features]
+bindgen = ["uniffi/cli"]
+
+[dependencies]
+vault-core = { workspace = true }
+uniffi = "0.32"
+uuid = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

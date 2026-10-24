@@ -5,6 +5,7 @@ members = [
   "crates/vault-cli",
   "crates/native-host",
   "crates/vault-ipc",
+  "crates/vault-ffi",
   "apps/desktop/src-tauri",
 ]
 

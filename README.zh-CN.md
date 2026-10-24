@@ -7,6 +7,7 @@ Local-first 密码管理器，Bitwarden 的无服务器平替。
 - Vault 是标准 **KDBX 4** 文件（Argon2id + AES-256），可与 KeePassXC / Strongbox / KeePassium / KeePassDX 互通，手机端直接用这些客户端。
 - 多设备同步靠网盘：把 vault 放进 iCloud Drive / Dropbox / OneDrive 目录，或配置坚果云 WebDAV；冲突按条目级时间戳合并。
 - 桌面端：Tauri 2 + React，支持 macOS / Windows / Linux。
+- Android 应用：Kotlin + Jetpack Compose，复用同一个 Rust 核心；支持在其他应用和浏览器中自动填充、指纹解锁、WebDAV 同步。
 - 浏览器插件：Chrome / Edge / Brave / Firefox，通过 Native Messaging 与桌面端通信，密钥不离开桌面进程。
 - 导入 Bitwarden 导出（JSON / CSV / 密码保护 JSON），支持 TOTP。
 
@@ -22,8 +23,10 @@ Local-first 密码管理器，Bitwarden 的无服务器平替。
 | `crates/vault-cli` | 调试 CLI |
 | `crates/vault-ipc` | 桌面端与 native host 共用的 socket 命名与帧格式 |
 | `crates/native-host` | 浏览器 native messaging host（纯代理） |
+| `crates/vault-ffi` | 给移动端用的 vault-core（UniFFI 绑定） |
 | `apps/desktop` | Tauri 桌面端（`src/` 前端，`src-tauri/` 后端） |
 | `apps/extension` | 浏览器插件 |
+| `apps/android` | Android 应用（Kotlin、Jetpack Compose） |
 | `docs/ARCHITECTURE.md` | 架构与接口契约 |
 
 ## 使用
@@ -47,6 +50,17 @@ Windows 构建需要 Rust（MSVC 工具链）和装了"使用 C++ 的桌面开�
 2. `cd apps/extension && pnpm install && pnpm build`，然后在浏览器里加载未打包的扩展：
    Chrome / Edge / Brave 用 `apps/extension/dist/chrome`，Firefox 用 `apps/extension/dist/firefox/manifest.json`。
 3. 点插件图标 → "连接 Vaultlet"，在桌面端确认配对。
+
+### Android
+
+```bash
+rustup target add aarch64-linux-android x86_64-linux-android
+cargo install cargo-ndk
+node scripts/build-android-core.mjs        # Rust 核心 -> app/src/main/jniLibs + Kotlin 绑定
+cd apps/android && ./gradlew assembleDebug # 产物在 app/build/outputs/apk/debug/app-debug.apk
+```
+
+需要 Android SDK（compileSdk 37）和 NDK（`ANDROID_HOME`，或 `ANDROID_NDK_HOME`），以及 JDK 17+。首次启动填写 WebDAV 服务器（例如坚果云和应用密码）、密码库在服务器上的路径和主密码。加密后的密码库会缓存在手机上，离线也能解锁；修改在后台同步。在 设置 → 密码和账号 → 自动填充服务 里开启自动填充。网页域名只信任已知浏览器上报的；其他应用按包名匹配（`androidapp://<包名>`，与 Bitwarden 的存法一致）。
 
 ### 命令行
 
