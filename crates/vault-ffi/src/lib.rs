@@ -31,6 +31,15 @@ fn failed(code: &str, message: impl Into<String>) -> VaultError {
 
 type Result<T> = std::result::Result<T, VaultError>;
 
+/// For WebDAV requests: vault-core reports a 401/403 as `InvalidKey`, the same as a wrong master
+/// password; tell the two apart for the user.
+fn net<T>(r: vault_core::Result<T>) -> Result<T> {
+    r.map_err(|e| match e {
+        vault_core::Error::InvalidKey => failed("webdav-auth", "the WebDAV server rejected the username or app password"),
+        e => e.into(),
+    })
+}
+
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
 pub struct ItemSummary {
     pub id: String,
@@ -189,7 +198,7 @@ pub fn generate_password(length: u32, upper: bool, lower: bool, digits: bool, sy
 #[uniffi::export]
 pub fn webdav_test(config: WebDavConfig) -> Result<()> {
     let c = client(&config)?;
-    runtime()?.block_on(c.test_connection())?;
+    net(runtime()?.block_on(c.test_connection()))?;
     Ok(())
 }
 
@@ -197,7 +206,7 @@ pub fn webdav_test(config: WebDavConfig) -> Result<()> {
 #[uniffi::export]
 pub fn webdav_fetch(config: WebDavConfig) -> Result<Download> {
     let c = client(&config)?;
-    match runtime()?.block_on(c.get(&config.remote_path, None))? {
+    match net(runtime()?.block_on(c.get(&config.remote_path, None)))? {
         GetResult::Modified { bytes, etag } => Ok(Download { bytes, etag }),
         GetResult::NotFound => Err(failed("not-found", format!("{} not found on the server", config.remote_path))),
         GetResult::NotModified => Err(failed("http", "unexpected 304")),
@@ -387,7 +396,7 @@ impl Vault {
                 let g = self.lock();
                 (g.etag.clone(), g.creds.clone())
             };
-            let pulled = rt.block_on(c.get(&remote, etag.as_deref()))?;
+            let pulled = net(rt.block_on(c.get(&remote, etag.as_deref())))?;
             let remote_vault = match &pulled {
                 GetResult::Modified { bytes, .. } => Some(vault_core::Vault::open(bytes, &creds)?),
                 _ => None,
@@ -434,7 +443,7 @@ impl Vault {
                 }
                 Err(e) => {
                     g.pending_upload = true;
-                    return Err(e.into());
+                    return net(Err(e));
                 }
             }
         }

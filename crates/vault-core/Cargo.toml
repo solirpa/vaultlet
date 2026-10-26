@@ -36,6 +36,11 @@ p256 = { version = "0.13", features = ["ecdsa", "pkcs8", "pem"] }
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "webpki-roots"] }
 directories = "6"
 
+# reqwest checks certificates with rustls-platform-verifier, which on Android needs a JNI init
+# that the UniFFI/JNA bindings can't do; trust the bundled Mozilla roots there instead.
+[target.'cfg(target_os = "android")'.dependencies]
+webpki-root-certs = "1"
+
 [dev-dependencies]
 tempfile = "3"
 ciborium = "0.2"

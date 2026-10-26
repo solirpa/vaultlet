@@ -69,10 +69,18 @@ impl Client {
         if !(base.starts_with("https://") || base.starts_with("http://")) {
             return Err(Error::InvalidArgument("WebDAV URL must start with http:// or https://".into()));
         }
-        let http = reqwest::Client::builder()
+        let builder = reqwest::Client::builder()
             .user_agent("Vaultlet/0.1")
-            .timeout(std::time::Duration::from_secs(60))
-            .build()?;
+            .timeout(std::time::Duration::from_secs(60));
+        // The platform verifier needs a JNI init on Android (see Cargo.toml): use bundled roots.
+        #[cfg(target_os = "android")]
+        let builder = builder.tls_certs_only(
+            webpki_root_certs::TLS_SERVER_ROOT_CERTS
+                .iter()
+                .map(|der| reqwest::Certificate::from_der(der))
+                .collect::<std::result::Result<Vec<_>, _>>()?,
+        );
+        let http = builder.build()?;
         Ok(Client { base, username: username.to_string(), password: password.to_string(), http })
     }
 

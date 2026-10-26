@@ -6012,6 +6012,7 @@ dependencies = [
  "totp-rs",
  "url",
  "uuid",
+ "webpki-root-certs",
  "zeroize",
 ]
 

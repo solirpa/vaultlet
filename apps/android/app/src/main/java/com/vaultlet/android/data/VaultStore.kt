@@ -152,6 +152,7 @@ class VaultStore(context: Context) {
 fun Throwable.vaultMessage(): String = when (this) {
     is VaultException.Failed -> when (code) {
         "invalid-key" -> "Wrong master password"
+        "webdav-auth" -> "The WebDAV server rejected the username or app password"
         else -> detail
     }
     else -> message ?: toString()
