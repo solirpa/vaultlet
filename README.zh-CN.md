@@ -11,6 +11,8 @@ Local-first 密码管理器，Bitwarden 的无服务器平替。
 - 浏览器插件：Chrome / Edge / Brave / Firefox，通过 Native Messaging 与桌面端通信，密钥不离开桌面进程。
 - 导入 Bitwarden 导出（JSON / CSV / 密码保护 JSON），支持 TOTP。
 
+> **状态：** 个人项目，尚未经过独立的安全审计。使用风险自负，请定期备份 vault 文件。发现安全漏洞请私下报告，见 [SECURITY.md](SECURITY.md)。
+
 | 浅色 | 深色 |
 |---|---|
 | ![](docs/screenshots/main-light.jpg) | ![](docs/screenshots/main-dark.jpg) |
@@ -41,6 +43,12 @@ cd apps/desktop && pnpm install && pnpm tauri:dev
 然后在 设置 → 导入 里选 Bitwarden 导出文件（`.json` / `.csv` / 密码保护的 `.json`）。
 
 打包成可安装的应用：`pnpm tauri:build`（产物在 `target/release/bundle/`；Windows 上生成 `.msi` 和 NSIS `-setup.exe`）。发布产物里会去掉构建路径和构建者的用户名。
+
+macOS 版本没有用 Apple 开发者 ID 签名，从网上下载后 macOS 会提示"已损坏"。拖进"应用程序"后，执行一次下面的命令清除下载隔离标记即可打开：
+
+```bash
+xattr -cr /Applications/Vaultlet.app
+```
 
 Windows 构建需要 Rust（MSVC 工具链）和装了"使用 C++ 的桌面开发"工作负载的 Visual Studio / Build Tools；WebView2 运行时 Windows 11 自带。
 
@@ -98,3 +106,11 @@ cd apps/extension && pnpm install && pnpm build   # 产物在 dist/chrome 与 di
 ```
 
 CI 会在每次 push 和 PR 时在 macOS / Windows / Linux 上跑测试。推送 `v0.1.0` 这样的 tag 会构建三个平台的安装包和插件 zip，并附到一个 GitHub Release 草稿上。
+
+## 安全
+
+请不要在公开 issue 里报告安全漏洞。私下报告的方式和安全设计概要见 [SECURITY.md](SECURITY.md)。
+
+## 许可证
+
+[MIT](LICENSE)

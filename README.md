@@ -11,6 +11,8 @@ A local-first password manager: a serverless alternative to Bitwarden.
 - Browser extension: Chrome / Edge / Brave / Firefox. It talks to the desktop app over Native Messaging; keys never leave the desktop process.
 - Imports Bitwarden exports (JSON / CSV / password-protected JSON), with TOTP support.
 
+> **Status:** a personal project that has not had an independent security audit. Use it at your own risk and keep backups of your vault file. Please report vulnerabilities privately; see [SECURITY.md](SECURITY.md).
+
 | Light | Dark |
 |---|---|
 | ![](docs/screenshots/main-light.jpg) | ![](docs/screenshots/main-dark.jpg) |
@@ -41,6 +43,12 @@ On first launch, choose where the vault lives (a local folder, a detected iCloud
 Then pick a Bitwarden export (`.json` / `.csv` / password-protected `.json`) under Settings → Import.
 
 To build installable packages: `pnpm tauri:build` (output in `target/release/bundle/`; on Windows this produces an `.msi` and an NSIS `-setup.exe`). Build paths and the builder's user name are stripped from the release binaries.
+
+The macOS release is not signed with an Apple Developer ID, so macOS reports a downloaded copy as "damaged". After moving it to Applications, clear the download quarantine once:
+
+```bash
+xattr -cr /Applications/Vaultlet.app
+```
 
 Building on Windows requires Rust (MSVC toolchain) and Visual Studio / Build Tools with the "Desktop development with C++" workload. The WebView2 runtime ships with Windows 11.
 
@@ -98,3 +106,11 @@ cd apps/extension && pnpm install && pnpm build   # output in dist/chrome and di
 ```
 
 CI runs the tests on macOS, Windows and Linux for every push and pull request. Pushing a tag such as `v0.1.0` builds installers for all three platforms plus the extension zips and attaches them to a draft GitHub release.
+
+## Security
+
+Please do not report vulnerabilities in public issues. See [SECURITY.md](SECURITY.md) for how to report them privately and for an overview of the security design.
+
+## License
+
+[MIT](LICENSE)
