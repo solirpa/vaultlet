@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -15,9 +17,26 @@ android {
         versionName = "0.1.1"
     }
 
+    // Release signing: VAULTLET_ANDROID_SIGNING names a properties file (storeFile, storePassword,
+    // keyAlias, keyPassword) kept outside the repository. Without it the release APK is unsigned.
+    val signing = System.getenv("VAULTLET_ANDROID_SIGNING")?.let { file(it) }?.takeIf { it.isFile }?.let { f ->
+        Properties().apply { f.inputStream().use { load(it) } }
+    }
+    signingConfigs {
+        if (signing != null) {
+            create("release") {
+                storeFile = file(signing.getProperty("storeFile"))
+                storePassword = signing.getProperty("storePassword")
+                keyAlias = signing.getProperty("keyAlias")
+                keyPassword = signing.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (signing != null) signingConfig = signingConfigs.getByName("release")
         }
     }
 

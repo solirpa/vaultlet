@@ -6,6 +6,7 @@
 // and `rustup target add aarch64-linux-android x86_64-linux-android`.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -17,9 +18,22 @@ if (!env.ANDROID_NDK_HOME && env.ANDROID_HOME) {
   const versions = existsSync(ndkDir) ? readdirSync(ndkDir).sort() : [];
   if (versions.length) env.ANDROID_NDK_HOME = join(ndkDir, versions.at(-1));
 }
+const debug = process.argv.includes('--debug');
+if (!debug) {
+  // As in build-release.mjs: keep the builder's home and checkout paths out of the library.
+  const cargoHome = join(root, 'target', 'cargo-home');
+  const remaps = [
+    [homedir(), '~'],
+    env.RUSTUP_HOME && [resolve(env.RUSTUP_HOME), '~/.rustup'],
+    [root, 'vaultlet'],
+    [cargoHome, 'cargo'],
+  ].filter(Boolean);
+  env.CARGO_HOME = cargoHome;
+  env.CARGO_ENCODED_RUSTFLAGS = remaps.map(([from, to]) => `--remap-path-prefix=${from}=${to}`).join('\x1f');
+  delete env.RUSTFLAGS;
+}
 const run = (args) => execFileSync('cargo', args, { cwd: root, env, stdio: 'inherit' });
 
-const debug = process.argv.includes('--debug');
 const profile = debug ? [] : ['--release'];
 run(['ndk', '-t', 'arm64-v8a', '-t', 'x86_64', '--platform', '26', '-o', join(app, 'jniLibs'), 'build', ...profile, '-p', 'vault-ffi']);
 run([
