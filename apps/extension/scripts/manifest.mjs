@@ -1,7 +1,9 @@
 // Manifest templates for Chromium-family browsers and Firefox.
+import { readFileSync } from 'node:fs';
 import { publicKeyBase64 } from './extension-id.mjs';
 
-const VERSION = '0.1.1';
+// One version for the whole release: kept in package.json.
+const { version: VERSION } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 const common = {
   manifest_version: 3,
