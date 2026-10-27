@@ -453,3 +453,57 @@ impl Vault {
         Ok(SyncResult { vault_bytes, etag: g.etag.clone(), changed_locally, uploaded, pending_upload: g.pending_upload })
     }
 }
+
+// ---- vault file kept by the caller (iOS: a .kdbx in iCloud Drive / the Files app) --------------
+
+/// Outcome of [`Vault::merge_file`]. `pending_upload` means the file on disk lacks changes made
+/// here and should be rewritten from [`Vault::serialize`].
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct MergeOutcome {
+    pub changed_locally: bool,
+    pub pending_upload: bool,
+}
+
+/// One login as the OS credential store needs it (iOS AutoFill QuickType suggestions).
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct LoginIdentity {
+    pub id: String,
+    pub title: String,
+    pub username: String,
+    pub urls: Vec<String>,
+}
+
+#[uniffi::export]
+impl Vault {
+    /// Merge another copy of this vault (the file on disk after someone else wrote it), both
+    /// ways, like one round of [`Vault::sync_webdav`] without the network. The other copy must
+    /// use the same master password.
+    pub fn merge_file(&self, bytes: Vec<u8>) -> Result<MergeOutcome> {
+        let creds = self.lock().creds.clone();
+        // Decrypting (Argon2) takes a while: do it before taking the lock.
+        let mut other = vault_core::Vault::open(&bytes, &creds)?;
+        let mut g = self.lock();
+        let changed_locally = !g.vault.merge_from(&other).is_empty();
+        g.pending_upload |= !other.merge_from(&g.vault).is_empty();
+        Ok(MergeOutcome { changed_locally, pending_upload: g.pending_upload })
+    }
+
+    /// The caller wrote [`Vault::serialize`] to its destination: nothing is pending any more.
+    pub fn mark_uploaded(&self) {
+        self.lock().pending_upload = false;
+    }
+
+    /// Every login with a username, with all its URLs, sorted by title.
+    pub fn login_identities(&self) -> Vec<LoginIdentity> {
+        let mut out: Vec<LoginIdentity> = self
+            .lock()
+            .vault
+            .items()
+            .iter()
+            .filter(|i| i.kind == ItemKind::Login && !i.deleted && !i.username.is_empty())
+            .map(|i| LoginIdentity { id: i.id.to_string(), title: i.title.clone(), username: i.username.clone(), urls: i.urls.clone() })
+            .collect();
+        out.sort_by(|a, b| a.title.to_lowercase().cmp(&b.title.to_lowercase()));
+        out
+    }
+}

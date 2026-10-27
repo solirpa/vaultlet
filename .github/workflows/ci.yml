@@ -71,3 +71,55 @@ jobs:
           pnpm typecheck
           pnpm test
           pnpm build
+
+  android:
+    name: Android app
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-37.0 ndk;29.0.14206865
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the Rust core for Android
+        run: node scripts/build-android-core.mjs --debug
+      - name: Build the app
+        working-directory: apps/android
+        run: ./gradlew --no-daemon assembleDebug
+
+  ios:
+    name: iOS app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Build the Rust core for iOS
+        run: node scripts/build-ios-core.mjs --debug
+      - name: Build the app for the simulator
+        working-directory: apps/ios
+        run: |
+          xcodebuild build -project Vaultlet.xcodeproj -scheme Vaultlet -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM= | tail -40
+          test ${PIPESTATUS[0]} -eq 0

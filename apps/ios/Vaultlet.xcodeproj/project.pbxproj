@@ -1,0 +1,635 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		09DEA1CD8657E1F92627A1A3 /* VaultViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 108F66A5068A2C46F14427B8 /* VaultViews.swift */; };
+		1F1621F1DAF773AA966DE550 /* vault_ffi.swift in Sources */ = {isa = PBXBuildFile; fileRef = 751844C82BD74550FD3CB2C0 /* vault_ffi.swift */; };
+		438FFBD722C48695329AC6DE /* Prefs.swift in Sources */ = {isa = PBXBuildFile; fileRef = E53B770D0ADAB5EB6A23343B /* Prefs.swift */; };
+		4D4799CB7B5EE035E983BA09 /* CredentialProviderViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C61BFA794DC35861A65AB46C /* CredentialProviderViewController.swift */; };
+		5708FC87CA10182B0CE85AFC /* Clipboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04D97812FD90AFB10F247872 /* Clipboard.swift */; };
+		643850C6FE0F0172F3A7A366 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 803323C6CD04FF20B63A6459 /* Theme.swift */; };
+		65772B10391C673B7B1C9F3D /* vault_ffi.swift in Sources */ = {isa = PBXBuildFile; fileRef = 751844C82BD74550FD3CB2C0 /* vault_ffi.swift */; };
+		6D9CF394503879A31EF81C12 /* Clipboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04D97812FD90AFB10F247872 /* Clipboard.swift */; };
+		7008512F1F25C8D7B190DE61 /* Prefs.swift in Sources */ = {isa = PBXBuildFile; fileRef = E53B770D0ADAB5EB6A23343B /* Prefs.swift */; };
+		80102DD6039517FF95400226 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 21FBD05F59C050D2433CE1AD /* Assets.xcassets */; };
+		81F834342586F7A3DE7DDF2D /* VaultletApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9012417F07B77F870DC46E2C /* VaultletApp.swift */; };
+		86E711172A75D10FEEE227BA /* AuthViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB6C6672E63E894143A64484 /* AuthViews.swift */; };
+		94BCAB443B53506536BC47E4 /* VaultFFI.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E147616A4DB9369C7D0EB47 /* VaultFFI.xcframework */; };
+		A2169974205E52EF0EA7C6EE /* VaultStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9F927442C2EB581AA3FA612 /* VaultStore.swift */; };
+		ABFC4A32F5D2F0B1313E53B5 /* VaultStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9F927442C2EB581AA3FA612 /* VaultStore.swift */; };
+		B2FEA48C4C12905CF8BA2511 /* EditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A577AA7F8E98EBD47DB57FEE /* EditView.swift */; };
+		B9891621D3EC39543EA8D951 /* EditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A577AA7F8E98EBD47DB57FEE /* EditView.swift */; };
+		B9ED928EE8A38CD09B610D2F /* VaultFFI.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E147616A4DB9369C7D0EB47 /* VaultFFI.xcframework */; };
+		BD28D7E181A97DDB2BDD253D /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = DC34419233588A934EE1EB17 /* Localizable.strings */; };
+		C7B1699805DC7867DBEEE5A5 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 803323C6CD04FF20B63A6459 /* Theme.swift */; };
+		C7FE3D50CA3589B0DCA00D54 /* AuthViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB6C6672E63E894143A64484 /* AuthViews.swift */; };
+		CD3A2D0CDE3B2C69BD464C6E /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = B39E2925D555FA0F1FA7B3A5 /* Keychain.swift */; };
+		CDE5A132B5785C0CC4323A1A /* AutoFillPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3573BED0D72A07AD8EF07511 /* AutoFillPicker.swift */; };
+		CF1D3B18478BDD776D264F3E /* VaultViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 108F66A5068A2C46F14427B8 /* VaultViews.swift */; };
+		EF2402118D443F1714D649A0 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = DC34419233588A934EE1EB17 /* Localizable.strings */; };
+		F58B5D3840E668E3B680C26C /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = B39E2925D555FA0F1FA7B3A5 /* Keychain.swift */; };
+		FA6BEE4D2DC6A0016858D2FC /* VaultletAutoFill.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 927540D9BD47E42A86269CF8 /* VaultletAutoFill.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		540ED2FB18A22FCF420CE3A9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FD325F341E1AA4FDB6166F47 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2C699C315D8645D30967FDF7;
+			remoteInfo = VaultletAutoFill;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		7FA79F56A28D6155969E677C /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				FA6BEE4D2DC6A0016858D2FC /* VaultletAutoFill.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		04D97812FD90AFB10F247872 /* Clipboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Clipboard.swift; sourceTree = "<group>"; };
+		0E147616A4DB9369C7D0EB47 /* VaultFFI.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = VaultFFI.xcframework; path = Frameworks/VaultFFI.xcframework; sourceTree = "<group>"; };
+		108F66A5068A2C46F14427B8 /* VaultViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultViews.swift; sourceTree = "<group>"; };
+		21FBD05F59C050D2433CE1AD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		3573BED0D72A07AD8EF07511 /* AutoFillPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoFillPicker.swift; sourceTree = "<group>"; };
+		36109BBA03FF7477606C7432 /* Vaultlet.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Vaultlet.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		36491C7F8C67BE90C79B01C0 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		59D2DE3A07A72E22F7F25493 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		751844C82BD74550FD3CB2C0 /* vault_ffi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = vault_ffi.swift; sourceTree = "<group>"; };
+		803323C6CD04FF20B63A6459 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		9012417F07B77F870DC46E2C /* VaultletApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultletApp.swift; sourceTree = "<group>"; };
+		927540D9BD47E42A86269CF8 /* VaultletAutoFill.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = VaultletAutoFill.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A577AA7F8E98EBD47DB57FEE /* EditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditView.swift; sourceTree = "<group>"; };
+		B39E2925D555FA0F1FA7B3A5 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
+		B9F927442C2EB581AA3FA612 /* VaultStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultStore.swift; sourceTree = "<group>"; };
+		C61BFA794DC35861A65AB46C /* CredentialProviderViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialProviderViewController.swift; sourceTree = "<group>"; };
+		E53B770D0ADAB5EB6A23343B /* Prefs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Prefs.swift; sourceTree = "<group>"; };
+		FB6C6672E63E894143A64484 /* AuthViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViews.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		714030CEACEDA37973D5721F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B9ED928EE8A38CD09B610D2F /* VaultFFI.xcframework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7DEF4FCD9725A1E8650CD490 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				94BCAB443B53506536BC47E4 /* VaultFFI.xcframework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		31592BCF87E71056C23995D2 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				36109BBA03FF7477606C7432 /* Vaultlet.app */,
+				927540D9BD47E42A86269CF8 /* VaultletAutoFill.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		340BE15096B9ED34F9869151 /* Vaultlet */ = {
+			isa = PBXGroup;
+			children = (
+				21FBD05F59C050D2433CE1AD /* Assets.xcassets */,
+				B9FB15D250AC4A54EEED64F5 /* Sources */,
+			);
+			path = Vaultlet;
+			sourceTree = "<group>";
+		};
+		3F21AB43027516825AE3E28C /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				FB6C6672E63E894143A64484 /* AuthViews.swift */,
+				A577AA7F8E98EBD47DB57FEE /* EditView.swift */,
+				803323C6CD04FF20B63A6459 /* Theme.swift */,
+				108F66A5068A2C46F14427B8 /* VaultViews.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		540EB265D65E93A1B5AE4372 = {
+			isa = PBXGroup;
+			children = (
+				F609DFF4823FF75F934E9D1D /* Generated */,
+				F6A79CC311F82CBE6DD5929D /* Shared */,
+				340BE15096B9ED34F9869151 /* Vaultlet */,
+				90FFFDAABC90CF05C67BE35E /* VaultletAutoFill */,
+				A64FD4A9D2C5EEC2CA70B4E5 /* Frameworks */,
+				31592BCF87E71056C23995D2 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		8862C40E5A12B91D486BB50F /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				04D97812FD90AFB10F247872 /* Clipboard.swift */,
+				B39E2925D555FA0F1FA7B3A5 /* Keychain.swift */,
+				E53B770D0ADAB5EB6A23343B /* Prefs.swift */,
+				B9F927442C2EB581AA3FA612 /* VaultStore.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		88F27F4F1F86B1227DB4082E /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				3573BED0D72A07AD8EF07511 /* AutoFillPicker.swift */,
+				C61BFA794DC35861A65AB46C /* CredentialProviderViewController.swift */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		90FFFDAABC90CF05C67BE35E /* VaultletAutoFill */ = {
+			isa = PBXGroup;
+			children = (
+				88F27F4F1F86B1227DB4082E /* Sources */,
+			);
+			path = VaultletAutoFill;
+			sourceTree = "<group>";
+		};
+		A64FD4A9D2C5EEC2CA70B4E5 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				0E147616A4DB9369C7D0EB47 /* VaultFFI.xcframework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		B9FB15D250AC4A54EEED64F5 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				9012417F07B77F870DC46E2C /* VaultletApp.swift */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		DEBD9699FAC549B45ECAA4F0 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				DC34419233588A934EE1EB17 /* Localizable.strings */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		F609DFF4823FF75F934E9D1D /* Generated */ = {
+			isa = PBXGroup;
+			children = (
+				751844C82BD74550FD3CB2C0 /* vault_ffi.swift */,
+			);
+			path = Generated;
+			sourceTree = "<group>";
+		};
+		F6A79CC311F82CBE6DD5929D /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				8862C40E5A12B91D486BB50F /* Core */,
+				DEBD9699FAC549B45ECAA4F0 /* Resources */,
+				3F21AB43027516825AE3E28C /* UI */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		04D613969358692B2F2839BB /* Vaultlet */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4E2B7637B3DB11D5B2B730D4 /* Build configuration list for PBXNativeTarget "Vaultlet" */;
+			buildPhases = (
+				5E835EF35EE4A0A37257C22C /* Sources */,
+				BC33A78217CE91A5A05275F3 /* Resources */,
+				7DEF4FCD9725A1E8650CD490 /* Frameworks */,
+				7FA79F56A28D6155969E677C /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7DD193D266F79C528798CD82 /* PBXTargetDependency */,
+			);
+			name = Vaultlet;
+			packageProductDependencies = (
+			);
+			productName = Vaultlet;
+			productReference = 36109BBA03FF7477606C7432 /* Vaultlet.app */;
+			productType = "com.apple.product-type.application";
+		};
+		2C699C315D8645D30967FDF7 /* VaultletAutoFill */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BE30C344E233427692A8755A /* Build configuration list for PBXNativeTarget "VaultletAutoFill" */;
+			buildPhases = (
+				B47A3CC375640FD181F9CB06 /* Sources */,
+				FBC50BD544E2C3CD6AAB8AC7 /* Resources */,
+				714030CEACEDA37973D5721F /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = VaultletAutoFill;
+			packageProductDependencies = (
+			);
+			productName = VaultletAutoFill;
+			productReference = 927540D9BD47E42A86269CF8 /* VaultletAutoFill.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		FD325F341E1AA4FDB6166F47 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					04D613969358692B2F2839BB = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+					2C699C315D8645D30967FDF7 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = D3032B8699C70F300C2FACE7 /* Build configuration list for PBXProject "Vaultlet" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+				"zh-Hans",
+			);
+			mainGroup = 540EB265D65E93A1B5AE4372;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 31592BCF87E71056C23995D2 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				04D613969358692B2F2839BB /* Vaultlet */,
+				2C699C315D8645D30967FDF7 /* VaultletAutoFill */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		BC33A78217CE91A5A05275F3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				80102DD6039517FF95400226 /* Assets.xcassets in Resources */,
+				EF2402118D443F1714D649A0 /* Localizable.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FBC50BD544E2C3CD6AAB8AC7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BD28D7E181A97DDB2BDD253D /* Localizable.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5E835EF35EE4A0A37257C22C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C7FE3D50CA3589B0DCA00D54 /* AuthViews.swift in Sources */,
+				5708FC87CA10182B0CE85AFC /* Clipboard.swift in Sources */,
+				B2FEA48C4C12905CF8BA2511 /* EditView.swift in Sources */,
+				CD3A2D0CDE3B2C69BD464C6E /* Keychain.swift in Sources */,
+				438FFBD722C48695329AC6DE /* Prefs.swift in Sources */,
+				C7B1699805DC7867DBEEE5A5 /* Theme.swift in Sources */,
+				A2169974205E52EF0EA7C6EE /* VaultStore.swift in Sources */,
+				CF1D3B18478BDD776D264F3E /* VaultViews.swift in Sources */,
+				81F834342586F7A3DE7DDF2D /* VaultletApp.swift in Sources */,
+				1F1621F1DAF773AA966DE550 /* vault_ffi.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B47A3CC375640FD181F9CB06 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				86E711172A75D10FEEE227BA /* AuthViews.swift in Sources */,
+				CDE5A132B5785C0CC4323A1A /* AutoFillPicker.swift in Sources */,
+				6D9CF394503879A31EF81C12 /* Clipboard.swift in Sources */,
+				4D4799CB7B5EE035E983BA09 /* CredentialProviderViewController.swift in Sources */,
+				B9891621D3EC39543EA8D951 /* EditView.swift in Sources */,
+				F58B5D3840E668E3B680C26C /* Keychain.swift in Sources */,
+				7008512F1F25C8D7B190DE61 /* Prefs.swift in Sources */,
+				643850C6FE0F0172F3A7A366 /* Theme.swift in Sources */,
+				ABFC4A32F5D2F0B1313E53B5 /* VaultStore.swift in Sources */,
+				09DEA1CD8657E1F92627A1A3 /* VaultViews.swift in Sources */,
+				65772B10391C673B7B1C9F3D /* vault_ffi.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		7DD193D266F79C528798CD82 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2C699C315D8645D30967FDF7 /* VaultletAutoFill */;
+			targetProxy = 540ED2FB18A22FCF420CE3A9 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		DC34419233588A934EE1EB17 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				36491C7F8C67BE90C79B01C0 /* en */,
+				59D2DE3A07A72E22F7F25493 /* zh-Hans */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		99D9B19999DFA0BBFD7FCFC8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = VaultletAutoFill/VaultletAutoFill.entitlements;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"Frameworks\"",
+				);
+				INFOPLIST_FILE = VaultletAutoFill/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.vaultlet.ios.autofill;
+				PRODUCT_NAME = VaultletAutoFill;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		B1038E8C46469C01890AD96E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Vaultlet/Vaultlet.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"Frameworks\"",
+				);
+				INFOPLIST_FILE = Vaultlet/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.vaultlet.ios;
+				PRODUCT_NAME = Vaultlet;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		C0AB539149A23444E29DEDB4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 2;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.2.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		C6FED15C683BF20DDD905AAE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = VaultletAutoFill/VaultletAutoFill.entitlements;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"Frameworks\"",
+				);
+				INFOPLIST_FILE = VaultletAutoFill/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.vaultlet.ios.autofill;
+				PRODUCT_NAME = VaultletAutoFill;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		E0460F3776440B7A02FDF4BD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Vaultlet/Vaultlet.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"Frameworks\"",
+				);
+				INFOPLIST_FILE = Vaultlet/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.vaultlet.ios;
+				PRODUCT_NAME = Vaultlet;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		E5A6ED6B993AD885B0C200C8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 2;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.2.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		4E2B7637B3DB11D5B2B730D4 /* Build configuration list for PBXNativeTarget "Vaultlet" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E0460F3776440B7A02FDF4BD /* Debug */,
+				B1038E8C46469C01890AD96E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		BE30C344E233427692A8755A /* Build configuration list for PBXNativeTarget "VaultletAutoFill" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				99D9B19999DFA0BBFD7FCFC8 /* Debug */,
+				C6FED15C683BF20DDD905AAE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D3032B8699C70F300C2FACE7 /* Build configuration list for PBXProject "Vaultlet" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0AB539149A23444E29DEDB4 /* Debug */,
+				E5A6ED6B993AD885B0C200C8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = FD325F341E1AA4FDB6166F47 /* Project object */;
+}

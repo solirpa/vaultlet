@@ -7,7 +7,8 @@ Local-first 密码管理器，Bitwarden 的无服务器平替。
 - Vault 是标准 **KDBX 4** 文件（Argon2id + AES-256），可与 KeePassXC / Strongbox / KeePassium / KeePassDX 互通，手机端直接用这些客户端。
 - 多设备同步靠网盘：把 vault 放进 iCloud Drive / Dropbox / OneDrive 目录，或配置坚果云 WebDAV；冲突按条目级时间戳合并。
 - 桌面端：Tauri 2 + React，支持 macOS / Windows / Linux。
-- Android 应用：Kotlin + Jetpack Compose，复用同一个 Rust 核心；支持在其他应用和浏览器中自动填充、指纹解锁、WebDAV 同步。
+- Android 应用：Kotlin + Jetpack Compose，复用同一个 Rust 核心；支持在其他应用和浏览器中自动填充、指纹解锁、WebDAV 同步。手机和平板都适配（宽屏下列表与条目并排）。
+- iOS 应用：SwiftUI，复用同一个 Rust 核心，支持 iPhone 和 iPad；Safari 和各应用内的密码自动填充、面容 / 触控 ID 解锁，密码库可放在 iCloud 云盘（通过「文件」App）或 WebDAV。
 - 浏览器插件：Chrome / Edge / Brave / Firefox，通过 Native Messaging 与桌面端通信，密钥不离开桌面进程。
 - 导入 Bitwarden 导出（JSON / CSV / 密码保护 JSON），支持 TOTP。
 
@@ -29,6 +30,7 @@ Local-first 密码管理器，Bitwarden 的无服务器平替。
 | `apps/desktop` | Tauri 桌面端（`src/` 前端，`src-tauri/` 后端） |
 | `apps/extension` | 浏览器插件 |
 | `apps/android` | Android 应用（Kotlin、Jetpack Compose） |
+| `apps/ios` | iOS 应用（Swift、SwiftUI）及其密码自动填充扩展 |
 | `docs/ARCHITECTURE.md` | 架构与接口契约 |
 
 ## 使用
@@ -69,6 +71,21 @@ cd apps/android && ./gradlew assembleDebug # 产物在 app/build/outputs/apk/deb
 ```
 
 需要 Android SDK（compileSdk 37）和 NDK（`ANDROID_HOME`，或 `ANDROID_NDK_HOME`），以及 JDK 17+。首次启动填写 WebDAV 服务器（例如坚果云和应用密码）、密码库在服务器上的路径和主密码。加密后的密码库会缓存在手机上，离线也能解锁；修改在后台同步。在 设置 → 密码和账号 → 自动填充服务 里开启自动填充。网页域名只信任已知浏览器上报的；其他应用按包名匹配（`androidapp://<包名>`，与 Bitwarden 的存法一致）。
+
+平板、折叠屏和分屏（宽度 700 dp 及以上）下，列表固定在左侧，打开的条目显示在右侧。
+
+### iOS
+
+```bash
+rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+brew install xcodegen                      # 可选：从 project.yml 重新生成 apps/ios/Vaultlet.xcodeproj
+node scripts/build-ios-core.mjs            # Rust 核心 -> apps/ios/Frameworks/VaultFFI.xcframework + Swift 绑定
+open apps/ios/Vaultlet.xcodeproj           # 然后在 iPhone 或 iPad 上运行 Vaultlet scheme
+```
+
+需要 Xcode 16 及以上（iOS 17+）。在 Signing & Capabilities 里给 `Vaultlet` 和 `VaultletAutoFill` 两个 target 选好开发团队：App Group（`group.com.vaultlet.ios`）和自动填充能力都需要；没有的话应用也能运行，只是自动填充扩展看不到密码库。
+
+首次启动选择密码库的来源：Mac 通过 iCloud 云盘同步的那个 `.kdbx`（在「文件」App 里选，修改会合并回同一个文件），或像 Android 一样连接 WebDAV。加密后的密码库会缓存在设备上，离线也能解锁。在 设置 → 通用 → 自动填充与密码 里打开 Vaultlet，之后 Safari 和各应用的键盘上方会直接推荐登录信息，扩展用面容 / 触控 ID 解锁。iPad 上列表与打开的条目并排显示。
 
 ### 命令行
 
