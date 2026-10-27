@@ -15,6 +15,13 @@ android {
         targetSdk = 36
         versionCode = 3
         versionName = "0.3.0"
+
+        // Only the ABIs scripts/build-android-core.mjs builds the Rust core for. Without this,
+        // JNA's own 32-bit/MIPS native libraries would make the APK claim ABIs that have no
+        // libvault_ffi.so, and the app would crash on those devices.
+        ndk {
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
     }
 
     // Release signing: VAULTLET_ANDROID_SIGNING names a properties file (storeFile, storePassword,
