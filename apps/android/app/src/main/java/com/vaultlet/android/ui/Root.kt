@@ -1,10 +1,14 @@
 package com.vaultlet.android.ui
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,13 +16,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Fingerprint
+import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -34,6 +44,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -42,9 +54,13 @@ import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import com.vaultlet.android.R
 import com.vaultlet.android.data.SecretBox
+import com.vaultlet.android.data.VaultFile
+import com.vaultlet.android.data.VaultSource
 import com.vaultlet.android.data.VaultStore
 import com.vaultlet.android.data.vaultMessage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import uniffi.vault_ffi.WebDavConfig
 
 @Composable
@@ -102,8 +118,104 @@ private fun ErrorText(text: String?, tag: String? = null) {
     Text(text, style = Type.subhead, color = P.danger, modifier = if (tag != null) Modifier.tag(tag) else Modifier)
 }
 
+/** [vaultMessage], with `fileGone` (resolved in composition) for a vanished or revoked file. */
+private fun Throwable.messageFor(fileGone: String): String = if (this is VaultFile.Gone) fileGone else vaultMessage()
+
+/** A quiet footer link ("choose another", "use another vault"). */
+@Composable
+private fun FooterLink(text: String, onClick: () -> Unit) {
+    Text(
+        text,
+        style = Type.subhead,
+        color = P.muted,
+        modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 8.dp),
+    )
+}
+
+private sealed interface SetupStep {
+    data object Choose : SetupStep
+    data class File(val uri: Uri) : SetupStep
+    data object WebDav : SetupStep
+}
+
 @Composable
 private fun SetupScreen(store: VaultStore) {
+    var step by remember { mutableStateOf<SetupStep>(SetupStep.Choose) }
+    when (val st = step) {
+        SetupStep.Choose -> ChooseSourceScreen(onFile = { step = SetupStep.File(it) }, onWebDav = { step = SetupStep.WebDav })
+        is SetupStep.File -> FileSetupScreen(store, st.uri) { step = SetupStep.Choose }
+        SetupStep.WebDav -> WebDavSetupScreen(store) { step = SetupStep.Choose }
+    }
+}
+
+@Composable
+private fun ChooseSourceScreen(onFile: (Uri) -> Unit, onWebDav: () -> Unit) {
+    // OpenDocument (not GetContent): its grant can be made persistable, and it is read/write.
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) onFile(uri) }
+    AuthShell(
+        stringResource(R.string.setup_title),
+        stringResource(R.string.setup_body),
+        footer = { Text(stringResource(R.string.setup_footer), style = Type.caption, color = P.faint, textAlign = TextAlign.Center) },
+    ) {
+        SourceChoice(Icons.Outlined.FolderOpen, stringResource(R.string.setup_file), stringResource(R.string.setup_file_body), Modifier.tag("setup_file")) {
+            // .kdbx has no registered MIME type; providers report it as octet-stream or nothing.
+            pick.launch(arrayOf("*/*"))
+        }
+        SourceChoice(Icons.Outlined.Cloud, stringResource(R.string.setup_webdav), stringResource(R.string.setup_webdav_body), Modifier.tag("setup_webdav"), onWebDav)
+    }
+}
+
+@Composable
+private fun SourceChoice(icon: ImageVector, title: String, detail: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Row(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(P.surface2).clickable(onClick = onClick).padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, null, tint = P.accent, modifier = Modifier.size(26.dp))
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = Type.headline, color = P.text)
+            Text(detail, style = Type.subhead, color = P.muted, modifier = Modifier.padding(top = 3.dp))
+        }
+        Icon(Icons.Outlined.ChevronRight, null, tint = P.faint, modifier = Modifier.size(18.dp))
+    }
+}
+
+@Composable
+private fun FileSetupScreen(store: VaultStore, uri: Uri, onBack: () -> Unit) {
+    val context = LocalContext.current
+    var name by remember { mutableStateOf<String?>(null) }
+    // Cloud providers may take a moment to answer the name query; keep it off the main thread.
+    LaunchedEffect(uri) { name = withContext(Dispatchers.IO) { VaultFile.displayName(context.contentResolver, uri) } }
+    var master by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val fileGone = stringResource(R.string.err_file_gone)
+    val open = {
+        if (!busy && master.isNotEmpty()) {
+            busy = true
+            error = null
+            scope.launch {
+                try {
+                    store.setUpFile(uri, master)
+                } catch (e: Exception) {
+                    error = e.messageFor(fileGone)
+                } finally {
+                    busy = false
+                }
+            }
+        }
+    }
+    AuthShell(stringResource(R.string.unlock_title), name, footer = { FooterLink(stringResource(R.string.choose_another), onBack) }) {
+        Field(master, { master = it }, stringResource(R.string.master_password), secret = true, onDone = open, tag = "setup_master")
+        ErrorText(error)
+        PrimaryButton(stringResource(R.string.open), open, enabled = master.isNotEmpty(), busy = busy, modifier = Modifier.tag("setup_open"))
+    }
+}
+
+@Composable
+private fun WebDavSetupScreen(store: VaultStore, onBack: () -> Unit) {
     var url by rememberSaveable { mutableStateOf("https://dav.jianguoyun.com/dav/") }
     var user by rememberSaveable { mutableStateOf("") }
     var appPassword by remember { mutableStateOf("") }
@@ -128,7 +240,7 @@ private fun SetupScreen(store: VaultStore) {
             }
         }
     }
-    AuthShell(stringResource(R.string.setup_title), stringResource(R.string.setup_body)) {
+    AuthShell(stringResource(R.string.setup_webdav), stringResource(R.string.setup_webdav_hint), footer = { FooterLink(stringResource(R.string.choose_another), onBack) }) {
         Field(url, { url = it }, stringResource(R.string.setup_url), keyboardType = KeyboardType.Uri, tag = "setup_url")
         Field(user, { user = it }, stringResource(R.string.setup_user), keyboardType = KeyboardType.Email, tag = "setup_user")
         Column {
@@ -154,6 +266,8 @@ private fun UnlockScreen(store: VaultStore, activity: FragmentActivity, onOfferB
     val cancel = stringResource(R.string.cancel)
     val invalidated = stringResource(R.string.biometric_invalidated)
 
+    val fileGone = stringResource(R.string.err_file_gone)
+
     fun unlockWith(password: String, askBiometric: Boolean) {
         busy = true
         error = null
@@ -162,7 +276,7 @@ private fun UnlockScreen(store: VaultStore, activity: FragmentActivity, onOfferB
                 store.unlock(password)
                 if (askBiometric && canBio && store.prefs.biometricBlob == null) onOfferBiometric(password)
             } catch (e: Exception) {
-                error = e.vaultMessage()
+                error = e.messageFor(fileGone)
             } finally {
                 busy = false
             }
@@ -193,17 +307,11 @@ private fun UnlockScreen(store: VaultStore, activity: FragmentActivity, onOfferB
     LaunchedEffect(Unit) { if (canBio && store.prefs.biometricBlob != null) unlockWithFingerprint() }
 
     val hasBio = canBio && store.prefs.biometricBlob != null
+    val source = remember { store.prefs.source }
     AuthShell(
         title = stringResource(R.string.unlock_title),
-        subtitle = store.prefs.webdav?.remotePath?.substringAfterLast('/'),
-        footer = {
-            Text(
-                stringResource(R.string.sign_out),
-                style = Type.subhead,
-                color = P.muted,
-                modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { confirmSignOut = true }.padding(horizontal = 12.dp, vertical = 8.dp),
-            )
-        },
+        subtitle = source?.label,
+        footer = { FooterLink(stringResource(R.string.sign_out)) { confirmSignOut = true } },
     ) {
         Field(master, { master = it }, stringResource(R.string.master_password), secret = true, onDone = { if (master.isNotEmpty()) unlockWith(master, true) }, tag = "unlock_password")
         ErrorText(error, "unlock_error")
@@ -217,7 +325,7 @@ private fun UnlockScreen(store: VaultStore, activity: FragmentActivity, onOfferB
         AlertDialog(
             onDismissRequest = { confirmSignOut = false },
             containerColor = P.surface,
-            text = { Text(stringResource(R.string.sign_out_confirm), style = Type.body, color = P.text) },
+            text = { Text(stringResource(if (source is VaultSource.File) R.string.sign_out_confirm_file else R.string.sign_out_confirm), style = Type.body, color = P.text) },
             confirmButton = { TextButton(onClick = { confirmSignOut = false; store.signOut() }) { Text(stringResource(R.string.sign_out), color = P.danger) } },
             dismissButton = { TextButton(onClick = { confirmSignOut = false }) { Text(stringResource(R.string.cancel)) } },
         )

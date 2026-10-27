@@ -1,12 +1,31 @@
 package com.vaultlet.android.data
 
 import android.content.Context
+import android.net.Uri
 import androidx.core.content.edit
 import uniffi.vault_ffi.WebDavConfig
+
+/** Where the vault comes from. */
+sealed interface VaultSource {
+    data class WebDav(val config: WebDavConfig) : VaultSource
+
+    /** A `.kdbx` picked with the system document picker (Storage Access Framework). */
+    data class File(val uri: Uri, val name: String) : VaultSource
+
+    /** Short label for the unlock screen. */
+    val label: String
+        get() = when (this) {
+            is WebDav -> config.remotePath.substringAfterLast('/')
+            is File -> name
+        }
+}
 
 /** Where the vault lives and what the app remembers about it. Secrets are sealed by [SecretBox]. */
 class Prefs(context: Context) {
     private val p = context.getSharedPreferences("vaultlet", Context.MODE_PRIVATE)
+
+    val source: VaultSource?
+        get() = file ?: webdav?.let { VaultSource.WebDav(it) }
 
     var webdav: WebDavConfig?
         get() {
@@ -30,12 +49,26 @@ class Prefs(context: Context) {
             }
         }
 
-    /** ETag of the remote copy the local cache corresponds to. */
+    var file: VaultSource.File?
+        get() {
+            val uri = p.getString("file_uri", null) ?: return null
+            return VaultSource.File(Uri.parse(uri), p.getString("file_name", "") ?: "")
+        }
+        set(value) = p.edit {
+            if (value == null) {
+                remove("file_uri"); remove("file_name")
+            } else {
+                putString("file_uri", value.uri.toString())
+                putString("file_name", value.name)
+            }
+        }
+
+    /** ETag of the remote copy the local cache corresponds to (WebDAV only). */
     var etag: String?
         get() = p.getString("etag", null)
         set(value) = p.edit { putString("etag", value) }
 
-    /** Local changes not on the server yet. */
+    /** Local changes not in the file / on the server yet. */
     var pendingUpload: Boolean
         get() = p.getBoolean("pending_upload", false)
         set(value) = p.edit { putBoolean("pending_upload", value) }

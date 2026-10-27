@@ -7,7 +7,7 @@ Local-first 密码管理器，Bitwarden 的无服务器平替。
 - Vault 是标准 **KDBX 4** 文件（Argon2id + AES-256），可与 KeePassXC / Strongbox / KeePassium / KeePassDX 互通，手机端直接用这些客户端。
 - 多设备同步靠网盘：把 vault 放进 iCloud Drive / Dropbox / OneDrive 目录，或配置坚果云 WebDAV；冲突按条目级时间戳合并。
 - 桌面端：Tauri 2 + React，支持 macOS / Windows / Linux。
-- Android 应用：Kotlin + Jetpack Compose，复用同一个 Rust 核心；支持在其他应用和浏览器中自动填充、指纹解锁、WebDAV 同步。手机和平板都适配（宽屏下列表与条目并排）。
+- Android 应用：Kotlin + Jetpack Compose，复用同一个 Rust 核心；支持在其他应用和浏览器中自动填充、指纹解锁，密码库可以是网盘应用里的文件（系统文件选择器）或 WebDAV。手机和平板都适配（宽屏下列表与条目并排）。
 - iOS 应用：SwiftUI，复用同一个 Rust 核心，支持 iPhone 和 iPad；Safari 和各应用内的密码自动填充、面容 / 触控 ID 解锁，密码库可放在 iCloud 云盘（通过「文件」App）或 WebDAV。
 - 浏览器插件：Chrome / Edge / Brave / Firefox，通过 Native Messaging 与桌面端通信，密钥不离开桌面进程。
 - 导入 Bitwarden 导出（JSON / CSV / 密码保护 JSON），支持 TOTP。
@@ -70,7 +70,7 @@ node scripts/build-android-core.mjs        # Rust 核心 -> app/src/main/jniLibs
 cd apps/android && ./gradlew assembleDebug # 产物在 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-需要 Android SDK（compileSdk 37）和 NDK（`ANDROID_HOME`，或 `ANDROID_NDK_HOME`），以及 JDK 17+。首次启动填写 WebDAV 服务器（例如坚果云和应用密码）、密码库在服务器上的路径和主密码。加密后的密码库会缓存在手机上，离线也能解锁；修改在后台同步。在 设置 → 密码和账号 → 自动填充服务 里开启自动填充。网页域名只信任已知浏览器上报的；其他应用按包名匹配（`androidapp://<包名>`，与 Bitwarden 的存法一致）。
+需要 Android SDK（compileSdk 37）和 NDK（`ANDROID_HOME`，或 `ANDROID_NDK_HOME`），以及 JDK 17+。首次启动选择密码库的来源：用系统文件选择器选一个 `.kdbx`（Google Drive、坚果云、OneDrive 或任何提供文件的应用，修改会合并回同一个文件），或填写 WebDAV 服务器（例如坚果云和应用密码）和密码库在服务器上的路径。加密后的密码库会缓存在手机上，离线也能解锁；修改在后台同步。在 设置 → 密码和账号 → 自动填充服务 里开启自动填充。网页域名只信任已知浏览器上报的；其他应用按包名匹配（`androidapp://<包名>`，与 Bitwarden 的存法一致）。
 
 平板、折叠屏和分屏（宽度 700 dp 及以上）下，列表固定在左侧，打开的条目显示在右侧。
 

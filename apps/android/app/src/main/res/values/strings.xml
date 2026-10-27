@@ -4,7 +4,15 @@
 
     <!-- setup -->
     <string name="setup_title">Connect your vault</string>
-    <string name="setup_body">Vaultlet syncs through WebDAV, e.g. 坚果云 (Nutstore). Your vault stays encrypted on the server and on this phone.</string>
+    <string name="setup_body">Vaultlet keeps your passwords in a standard KDBX file. Open the one your cloud drive app syncs, or connect a WebDAV server.</string>
+    <string name="setup_file">File on this phone</string>
+    <string name="setup_file_body">Pick the .kdbx from Google Drive, 坚果云, OneDrive or a folder. Changes merge into the same file.</string>
+    <string name="setup_webdav">WebDAV server</string>
+    <string name="setup_webdav_body">坚果云 (Nutstore) or any other WebDAV server.</string>
+    <string name="setup_webdav_hint">Your vault stays encrypted on the server and on this phone.</string>
+    <string name="setup_footer">The vault is only ever decrypted on this phone.</string>
+    <string name="choose_another">Choose another</string>
+    <string name="err_file_gone">The vault file is no longer accessible. Choose it again.</string>
     <string name="setup_url">Server URL</string>
     <string name="setup_user">Username</string>
     <string name="setup_app_password">App password</string>
@@ -18,6 +26,7 @@
     <string name="unlock_fingerprint">Unlock with fingerprint</string>
     <string name="sign_out">Use another vault</string>
     <string name="sign_out_confirm">Remove the vault from this phone? The copy on the server is not touched.</string>
+    <string name="sign_out_confirm_file">Forget this vault? The file itself is not touched.</string>
     <string name="biometric_title">Unlock Vaultlet</string>
     <string name="biometric_enable_title">Fingerprint unlock</string>
     <string name="biometric_enable_body">Unlock with your fingerprint next time? The master password is kept encrypted with a key that only your fingerprint can use.</string>
