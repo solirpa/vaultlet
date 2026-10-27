@@ -21,7 +21,10 @@ class VaultletApp : Application() {
 
 val Context.store: VaultStore get() = (applicationContext as VaultletApp).store
 
-/** Lock once the app has been in the background for the configured time. */
+/**
+ * Lock once the app has been in the background for the configured time; otherwise pick up
+ * changes made elsewhere (the desktop app, another device) on the way back.
+ */
 private class AutoLock(private val store: VaultStore) : DefaultLifecycleObserver {
     private var backgroundSince = 0L
 
@@ -32,6 +35,6 @@ private class AutoLock(private val store: VaultStore) : DefaultLifecycleObserver
     override fun onStart(owner: LifecycleOwner) {
         if (backgroundSince == 0L) return
         val away = SystemClock.elapsedRealtime() - backgroundSince
-        if (away >= store.prefs.autoLockMinutes * 60_000L) store.lock()
+        if (away >= store.prefs.autoLockMinutes * 60_000L) store.lock() else store.syncInBackground()
     }
 }

@@ -70,7 +70,7 @@ node scripts/build-android-core.mjs        # Rust core -> app/src/main/jniLibs +
 cd apps/android && ./gradlew assembleDebug # app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Needs the Android SDK (compileSdk 37) and NDK (`ANDROID_HOME`, or `ANDROID_NDK_HOME`), and JDK 17+. On first launch, enter the WebDAV server (e.g. 坚果云 with an app password), the vault's path on it and the master password. The encrypted vault is cached on the phone, so unlocking works offline; changes sync in the background. Turn on autofill in Settings → Passwords & accounts → Autofill service. Web page domains are only trusted from known browsers; other apps match by package name (`androidapp://<package>`, as Bitwarden stores it).
+Needs the Android SDK (compileSdk 37) and NDK (`ANDROID_HOME`, or `ANDROID_NDK_HOME`), and JDK 17+. On first launch, choose where the vault comes from: a `.kdbx` picked with the system file picker (Google Drive, 坚果云, OneDrive or any app that exposes files; changes merge back into the same file), or a WebDAV server (e.g. 坚果云 with an app password) with the vault's path on it. The encrypted vault is cached on the phone, so unlocking works offline; changes sync in the background. Turn on autofill in Settings → Passwords & accounts → Autofill service. Web page domains are only trusted from known browsers; other apps match by package name (`androidapp://<package>`, as Bitwarden stores it).
 
 On tablets, foldables and in split-screen (700 dp and wider) the list stays on the left and the open item is shown next to it.
 

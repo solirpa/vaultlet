@@ -308,7 +308,9 @@ app → 扩展主动推送：`{ action:"event", event:"locked" | "unlocked" | "i
 
 - **本地缓存**：加密的 vault 文件缓存在应用私有目录（iOS 为 App Group 容器，自动填充扩展共用），离线也能解锁；每次修改先写缓存，再后台同步。同步状态（ETag、未上传标记）由调用方持久化，重启后通过 `set_sync_state` 还原。
 - **WebDAV 模式**（两端）：`sync_webdav` 做 GET（If-None-Match）→ 两路合并 → PUT（If-Match）→ 412 重试，与桌面端一致。
-- **文件模式**（iOS）：用户在「文件」App 里选的 `.kdbx`（通常在 iCloud 云盘），以 security-scoped bookmark 保存。同步时 `NSFileCoordinator` 协调读取 → `merge_file` 两路合并 → 若本地有文件缺的改动，再协调写回（原子替换）；回到前台和每次修改后都会跑一次。
+- **文件模式**（两端）：用户选的一个 `.kdbx`。同步时读取文件 → `merge_file` 两路合并 → 若本地有文件缺的改动（`pending_upload`），再写回；解锁、回到前台和每次修改后都会跑一次。
+  - iOS：在「文件」App 里选（通常在 iCloud 云盘），以 security-scoped bookmark 保存；读写经 `NSFileCoordinator` 协调，写回是原子替换。
+  - Android：用 `ActivityResultContracts.OpenDocument`（Storage Access Framework）选，`takePersistableUriPermission` 保留读写授权，URI 存在 SharedPreferences；读写经 `ContentResolver`（写用 `"wt"` 截断模式，不支持的 provider 退回 `"w"`）。文件被删或授权被撤销时报 `VaultFile.Gone`，提示重新选择。写回不是原子的，这是 SAF 的限制；本地缓存始终先写，所以最坏情况是文件损坏但手机上的副本完整。
 - **生物识别解锁**：主密码用只有当前生物识别才能解开的密钥封存（Android Keystore `setUserAuthenticationRequired` + 指纹变更失效；iOS 钥匙串 `biometryCurrentSet`）。录入变化后封存的密码作废，需重新输入一次主密码。
 - **自动填充**：Android 用 AutofillService，网页域名只信任已知浏览器，其他应用按 `androidapp://<包名>` 匹配；iOS 用 Credential Provider 扩展，并把登录条目（标题、用户名、域名，不含密码）写入 `ASCredentialIdentityStore`，让 QuickType 直接推荐，扩展拿到条目 id 后自己解锁并取密码。
 - **平板**：Android 在宽度 ≥ 700 dp 时列表与条目并排（`BoxWithConstraints`）；iPad 用 `NavigationSplitView`，iPhone 用 `NavigationStack`。

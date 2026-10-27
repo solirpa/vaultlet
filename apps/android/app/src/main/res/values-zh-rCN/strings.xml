@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="setup_title">连接你的密码库</string>
-    <string name="setup_body">Vaultlet 通过 WebDAV（例如坚果云）同步。密码库在服务器和手机上都保持加密。</string>
+    <string name="setup_body">Vaultlet 把密码保存在标准的 KDBX 文件里。打开网盘应用同步的那个文件，或连接 WebDAV 服务器。</string>
+    <string name="setup_file">手机上的文件</string>
+    <string name="setup_file_body">从 Google Drive、坚果云、OneDrive 或某个文件夹选择 .kdbx，修改会合并回同一个文件。</string>
+    <string name="setup_webdav">WebDAV 服务器</string>
+    <string name="setup_webdav_body">坚果云或其他 WebDAV 服务器。</string>
+    <string name="setup_webdav_hint">密码库在服务器和手机上都保持加密。</string>
+    <string name="setup_footer">密码库只会在这台手机上解密。</string>
+    <string name="choose_another">换一个</string>
+    <string name="err_file_gone">无法再访问密码库文件，请重新选择。</string>
     <string name="setup_url">服务器地址</string>
     <string name="setup_user">用户名</string>
     <string name="setup_app_password">应用密码</string>
@@ -14,6 +22,7 @@
     <string name="unlock_fingerprint">用指纹解锁</string>
     <string name="sign_out">使用其他密码库</string>
     <string name="sign_out_confirm">从这台手机上移除密码库？服务器上的副本不受影响。</string>
+    <string name="sign_out_confirm_file">忘记这个密码库？文件本身不受影响。</string>
     <string name="biometric_title">解锁 Vaultlet</string>
     <string name="biometric_enable_title">指纹解锁</string>
     <string name="biometric_enable_body">下次用指纹解锁？主密码会用只有你的指纹才能使用的密钥加密保存。</string>
