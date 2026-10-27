@@ -1,0 +1,111 @@
+/* setup */
+"setup_title" = "连接你的密码库";
+"setup_body" = "Vaultlet 把密码保存在标准的 KDBX 文件里。打开 Mac 通过 iCloud 云盘同步的那个文件，或者连接 WebDAV 服务器。";
+"setup_file" = "iCloud 云盘 / 文件";
+"setup_file_body" = "在「文件」App 里选择 .kdbx 文件，修改会合并回同一个文件。";
+"setup_webdav" = "WebDAV 服务器";
+"setup_webdav_body" = "坚果云或其他 WebDAV 服务器。";
+"setup_webdav_hint" = "密码库在服务器和这台设备上都保持加密。";
+"setup_footer" = "密码库只会在这台设备上解密。";
+"setup_url" = "服务器地址";
+"setup_user" = "用户名";
+"setup_app_password" = "应用密码";
+"setup_app_password_hint" = "坚果云请使用「账户信息 → 安全选项」里生成的应用密码，不是登录密码。";
+"setup_path" = "服务器上的密码库文件";
+"setup_connect" = "连接";
+"choose_another" = "选择其他来源";
+"open_app_first_title" = "请先打开 Vaultlet";
+"open_app_first_body" = "在 Vaultlet 应用里设置好密码库，再回来自动填充密码。";
+
+/* unlock */
+"unlock_title" = "解锁密码库";
+"master_password" = "主密码";
+"unlock" = "解锁";
+"unlock_biometric" = "用%@解锁";
+"sign_out" = "使用其他密码库";
+"sign_out_confirm" = "从这台设备上移除密码库？服务器或 iCloud 云盘上的副本不受影响。";
+"biometric_title" = "解锁 Vaultlet";
+"biometric_enable_title" = "%@解锁";
+"biometric_enable_body" = "下次用%@解锁？主密码会保存在钥匙串里，只有通过你的生物识别才能读取。";
+"biometric_enable" = "开启";
+"biometric_invalidated" = "这台设备的面容或指纹有变动。请先输入一次主密码，再重新开启生物识别解锁。";
+"biometric_failed" = "生物识别未通过，请输入主密码。";
+"biometric_off" = "关闭%@解锁";
+"not_now" = "暂不";
+"cancel" = "取消";
+"ok" = "好";
+
+/* vault */
+"search" = "搜索密码库";
+"lock" = "锁定";
+"more" = "更多";
+"sync_now" = "立即同步";
+"synced" = "已同步";
+"syncing" = "正在同步…";
+"sync_failed" = "同步失败：%@";
+"auto_lock" = "自动锁定";
+"auto_lock_immediately" = "立即";
+"auto_lock_minutes" = "%ld 分钟后";
+"auto_lock_never" = "从不";
+"empty_vault" = "还没有项目";
+"no_results" = "没有匹配项";
+"no_selection" = "选择一个项目";
+"new_login" = "新建登录";
+"no_username" = "无用户名";
+"favorites" = "收藏";
+"all_items" = "全部";
+"results" = "搜索结果";
+
+/* item */
+"account" = "账号";
+"username" = "用户名";
+"password" = "密码";
+"totp" = "验证码";
+"websites" = "网站";
+"website" = "网址";
+"notes" = "备注";
+"fields" = "其他字段";
+"passkey" = "通行密钥";
+"passkey_saved" = "已保存通行密钥";
+"copy" = "复制";
+"copied" = "已复制%@";
+"show" = "显示";
+"hide" = "隐藏";
+"open" = "打开";
+"edit" = "编辑";
+"favorite" = "收藏";
+"edit_on_desktop" = "银行卡、身份和笔记请在桌面端编辑。";
+"kind_login" = "登录";
+"kind_note" = "安全笔记";
+"kind_card" = "卡片";
+"kind_identity" = "身份";
+
+/* editor */
+"edit_login" = "编辑登录";
+"name" = "名称";
+"generate" = "生成";
+"regenerate" = "换一个";
+"length" = "长度 %ld";
+"totp_set" = "已设置";
+"totp_replace" = "替换";
+"totp_remove" = "移除";
+"totp_removed" = "保存后将移除";
+"undo" = "撤销";
+"add_website" = "添加网址";
+"remove" = "删除";
+"kept_hint" = "文件夹、自定义字段和通行密钥会保留。";
+"save" = "保存";
+"saved" = "已保存";
+"trash" = "移到回收站";
+"trash_confirm" = "把这个项目移到回收站？可以在桌面端恢复。";
+"trashed" = "已移到回收站";
+"err_title" = "请填写名称。";
+"err_totp" = "不是有效的 TOTP 密钥或 otpauth:// 链接。";
+"err_wrong_password" = "主密码错误";
+"err_webdav_auth" = "WebDAV 服务器拒绝了用户名或应用密码";
+"err_not_found" = "找不到密码库文件";
+
+/* autofill */
+"autofill_choose" = "选择登录信息";
+"autofill_for" = "填充到 %@";
+"autofill_suggested" = "推荐";

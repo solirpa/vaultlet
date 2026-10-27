@@ -7,11 +7,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -107,6 +109,9 @@ private sealed interface Page {
     data class Edit(val id: String?) : Page
 }
 
+/** Width from which the list and the open item sit side by side (tablets, foldables, split screen). */
+private val TWO_PANE_MIN_WIDTH = 700.dp
+
 @Suppress("UNUSED_PARAMETER") // activity: kept for screens that need system prompts
 @Composable
 fun VaultScreen(store: VaultStore, vault: Vault, activity: FragmentActivity) {
@@ -120,30 +125,64 @@ fun VaultScreen(store: VaultStore, vault: Vault, activity: FragmentActivity) {
             toast = null
         }
     }
+    val saved = stringResource(R.string.saved)
+    val trashed = stringResource(R.string.trashed)
 
-    Box(Modifier.fillMaxSize().background(P.bg)) {
-        when (val p = page) {
-            Page.List -> ListPage(store, vault, onOpen = { page = Page.Detail(it) }, onNew = { page = Page.Edit(null) })
-            is Page.Detail -> {
-                BackHandler { page = Page.List }
-                DetailPage(store, vault, p.id, show, onBack = { page = Page.List }, onEdit = { page = Page.Edit(p.id) })
+    BoxWithConstraints(Modifier.fillMaxSize().background(P.bg)) {
+        val twoPane = maxWidth >= TWO_PANE_MIN_WIDTH
+        val listWidth = if (maxWidth >= 1000.dp) 400.dp else 340.dp
+        // The list, with the open item highlighted when it is shown next to it.
+        val selected = when (val p = page) {
+            Page.List -> null
+            is Page.Detail -> p.id
+            is Page.Edit -> p.id
+        }
+        val list: @Composable () -> Unit = {
+            ListPage(store, vault, selected = if (twoPane) selected else null, onOpen = { page = Page.Detail(it) }, onNew = { page = Page.Edit(null) })
+        }
+        // The open item: a page of its own on phones, the right pane on wide screens.
+        val content: @Composable () -> Unit = {
+            when (val p = page) {
+                Page.List -> if (twoPane) NoSelection() else list()
+                is Page.Detail -> {
+                    BackHandler { page = Page.List }
+                    DetailPage(store, vault, p.id, show, onBack = { page = Page.List }, onEdit = { page = Page.Edit(p.id) }, showBack = !twoPane)
+                }
+                is Page.Edit -> {
+                    val back = { page = if (p.id != null) Page.Detail(p.id) else Page.List }
+                    BackHandler { back() }
+                    EditPage(
+                        store, vault, p.id,
+                        onCancel = back,
+                        onSaved = { id -> show(saved); page = Page.Detail(id) },
+                        onTrashed = { show(trashed); page = Page.List },
+                    )
+                }
             }
-            is Page.Edit -> {
-                val back = { page = if (p.id != null) Page.Detail(p.id) else Page.List }
-                BackHandler { back() }
-                val saved = stringResource(R.string.saved)
-                val trashed = stringResource(R.string.trashed)
-                EditPage(
-                    store, vault, p.id,
-                    onCancel = back,
-                    onSaved = { id -> show(saved); page = Page.Detail(id) },
-                    onTrashed = { show(trashed); page = Page.List },
-                )
+        }
+        if (twoPane) {
+            Row(Modifier.fillMaxSize()) {
+                Box(Modifier.width(listWidth).fillMaxHeight()) { list() }
+                Box(Modifier.width(0.5.dp).fillMaxHeight().background(P.hairline))
+                Box(Modifier.weight(1f).fillMaxHeight()) { content() }
             }
+        } else {
+            content()
         }
         toast?.let {
             Toast(it, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 96.dp))
         }
+    }
+}
+
+/** Right pane before anything is opened (two-pane layout). */
+@Composable
+private fun NoSelection() {
+    Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Box(Modifier.size(64.dp).clip(CircleShape).background(P.surface3), contentAlignment = Alignment.Center) {
+            Icon(Icons.Outlined.Key, null, tint = P.faint, modifier = Modifier.size(30.dp))
+        }
+        Text(stringResource(R.string.no_selection), style = Type.callout, color = P.muted, modifier = Modifier.padding(top = 12.dp))
     }
 }
 
@@ -178,7 +217,7 @@ private fun TopBar(onBack: (() -> Unit)?, backLabel: String, title: String? = nu
 // ---- list ---------------------------------------------------------------------------------------
 
 @Composable
-private fun ListPage(store: VaultStore, vault: Vault, onOpen: (String) -> Unit, onNew: () -> Unit) {
+private fun ListPage(store: VaultStore, vault: Vault, selected: String?, onOpen: (String) -> Unit, onNew: () -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
     val revision by store.revision.collectAsState()
     val sync by store.sync.collectAsState()
@@ -227,10 +266,10 @@ private fun ListPage(store: VaultStore, vault: Vault, onOpen: (String) -> Unit, 
             } else {
                 if (favorites.isNotEmpty()) {
                     item { SectionLabel(stringResource(R.string.favorites), trailing = "${favorites.size}") }
-                    groupRows(favorites, "fav", onOpen)
+                    groupRows(favorites, "fav", selected, onOpen)
                 }
                 item { SectionLabel(stringResource(if (query.isBlank()) R.string.all_items else R.string.results), trailing = "${items.size}") }
-                groupRows(items, "all", onOpen)
+                groupRows(items, "all", selected, onOpen)
             }
         }
         // New login: accent tile like the desktop "+ New".
@@ -253,7 +292,7 @@ private fun ListPage(store: VaultStore, vault: Vault, onOpen: (String) -> Unit, 
 }
 
 /** One rounded group whose rows are separate lazy items (so long lists stay lazy). */
-private fun androidx.compose.foundation.lazy.LazyListScope.groupRows(items: List<ItemSummary>, prefix: String, onOpen: (String) -> Unit) {
+private fun androidx.compose.foundation.lazy.LazyListScope.groupRows(items: List<ItemSummary>, prefix: String, selected: String?, onOpen: (String) -> Unit) {
     itemsIndexed(items, key = { _, it -> prefix + it.id }) { i, item ->
         val first = i == 0
         val last = i == items.lastIndex
@@ -262,7 +301,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.groupRows(items: List
             bottomStart = if (last) 16.dp else 0.dp, bottomEnd = if (last) 16.dp else 0.dp,
         )
         Column(Modifier.clip(shape).background(P.surface)) {
-            ItemRow(item) { onOpen(item.id) }
+            ItemRow(item, selected = item.id == selected) { onOpen(item.id) }
             if (!last) GroupDivider(inset = 70.dp)
         }
     }
@@ -321,9 +360,9 @@ private fun EmptyState(text: Int) {
 }
 
 @Composable
-fun ItemRow(item: ItemSummary, onClick: () -> Unit) {
+fun ItemRow(item: ItemSummary, selected: Boolean = false, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 11.dp),
+        Modifier.fillMaxWidth().background(if (selected) P.accentSoft else Color.Transparent).clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Monogram(item.title, 40.dp, kindIcon(item.kind))
@@ -344,7 +383,7 @@ fun ItemRow(item: ItemSummary, onClick: () -> Unit) {
 // ---- detail -------------------------------------------------------------------------------------
 
 @Composable
-private fun DetailPage(store: VaultStore, vault: Vault, id: String, toast: (String) -> Unit, onBack: () -> Unit, onEdit: () -> Unit) {
+private fun DetailPage(store: VaultStore, vault: Vault, id: String, toast: (String) -> Unit, onBack: () -> Unit, onEdit: () -> Unit, showBack: Boolean = true) {
     val revision by store.revision.collectAsState()
     var item by remember { mutableStateOf<ItemDetail?>(null) }
     LaunchedEffect(id, revision) {
@@ -358,7 +397,7 @@ private fun DetailPage(store: VaultStore, vault: Vault, id: String, toast: (Stri
         toast(context.getString(R.string.copied, what))
     }
     Column(Modifier.fillMaxSize()) {
-        TopBar(onBack, stringResource(R.string.back)) {
+        TopBar(if (showBack) onBack else null, stringResource(R.string.back)) {
             if (i.kind == "login") Pill(stringResource(R.string.edit), Icons.Outlined.Edit, onEdit, Modifier.tag("edit"), filled = true)
         }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).navigationBarsPadding()) {

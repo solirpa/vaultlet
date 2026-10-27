@@ -1,0 +1,111 @@
+/* setup */
+"setup_title" = "Connect your vault";
+"setup_body" = "Vaultlet keeps your passwords in a standard KDBX file. Open the one your Mac syncs through iCloud Drive, or connect a WebDAV server.";
+"setup_file" = "iCloud Drive / Files";
+"setup_file_body" = "Pick the .kdbx file from the Files app. Changes merge into the same file.";
+"setup_webdav" = "WebDAV server";
+"setup_webdav_body" = "坚果云 (Nutstore) or any other WebDAV server.";
+"setup_webdav_hint" = "Your vault stays encrypted on the server and on this device.";
+"setup_footer" = "The vault is only ever decrypted on this device.";
+"setup_url" = "Server URL";
+"setup_user" = "Username";
+"setup_app_password" = "App password";
+"setup_app_password_hint" = "For 坚果云: an app password from Account → Security, not your login password.";
+"setup_path" = "Vault file on the server";
+"setup_connect" = "Connect";
+"choose_another" = "Choose another source";
+"open_app_first_title" = "Open Vaultlet first";
+"open_app_first_body" = "Set up your vault in the Vaultlet app, then come back to fill passwords.";
+
+/* unlock */
+"unlock_title" = "Unlock vault";
+"master_password" = "Master password";
+"unlock" = "Unlock";
+"unlock_biometric" = "Unlock with %@";
+"sign_out" = "Use another vault";
+"sign_out_confirm" = "Remove the vault from this device? The copy on the server or in iCloud Drive is not touched.";
+"biometric_title" = "Unlock Vaultlet";
+"biometric_enable_title" = "%@ unlock";
+"biometric_enable_body" = "Unlock with %@ next time? The master password is kept in the keychain, readable only with your biometrics.";
+"biometric_enable" = "Turn on";
+"biometric_invalidated" = "Face ID or Touch ID changed on this device. Enter the master password once to turn biometric unlock on again.";
+"biometric_failed" = "Biometric check failed. Enter the master password.";
+"biometric_off" = "Turn off %@ unlock";
+"not_now" = "Not now";
+"cancel" = "Cancel";
+"ok" = "OK";
+
+/* vault */
+"search" = "Search vault";
+"lock" = "Lock";
+"more" = "More";
+"sync_now" = "Sync now";
+"synced" = "Synced";
+"syncing" = "Syncing…";
+"sync_failed" = "Sync failed: %@";
+"auto_lock" = "Auto-lock";
+"auto_lock_immediately" = "Immediately";
+"auto_lock_minutes" = "After %ld min";
+"auto_lock_never" = "Never";
+"empty_vault" = "No items yet";
+"no_results" = "No matches";
+"no_selection" = "Select an item";
+"new_login" = "New login";
+"no_username" = "No username";
+"favorites" = "Favorites";
+"all_items" = "All items";
+"results" = "Results";
+
+/* item */
+"account" = "Account";
+"username" = "Username";
+"password" = "Password";
+"totp" = "Verification code";
+"websites" = "Websites";
+"website" = "Website";
+"notes" = "Notes";
+"fields" = "Other fields";
+"passkey" = "Passkey";
+"passkey_saved" = "Passkey saved";
+"copy" = "Copy";
+"copied" = "%@ copied";
+"show" = "Show";
+"hide" = "Hide";
+"open" = "Open";
+"edit" = "Edit";
+"favorite" = "Favorite";
+"edit_on_desktop" = "Cards, identities and notes are edited in the desktop app.";
+"kind_login" = "Login";
+"kind_note" = "Secure note";
+"kind_card" = "Card";
+"kind_identity" = "Identity";
+
+/* editor */
+"edit_login" = "Edit login";
+"name" = "Name";
+"generate" = "Generate";
+"regenerate" = "Generate another";
+"length" = "Length %ld";
+"totp_set" = "Configured";
+"totp_replace" = "Replace";
+"totp_remove" = "Remove";
+"totp_removed" = "Will be removed when you save";
+"undo" = "Undo";
+"add_website" = "Add website";
+"remove" = "Remove";
+"kept_hint" = "Folders, custom fields and passkeys are kept.";
+"save" = "Save";
+"saved" = "Saved";
+"trash" = "Move to trash";
+"trash_confirm" = "Move this item to the trash? You can restore it in the desktop app.";
+"trashed" = "Moved to trash";
+"err_title" = "Enter a name.";
+"err_totp" = "Not a TOTP secret or otpauth:// link.";
+"err_wrong_password" = "Wrong master password";
+"err_webdav_auth" = "The WebDAV server rejected the username or app password";
+"err_not_found" = "The vault file was not found";
+
+/* autofill */
+"autofill_choose" = "Choose a login";
+"autofill_for" = "Fill in %@";
+"autofill_suggested" = "Suggested";

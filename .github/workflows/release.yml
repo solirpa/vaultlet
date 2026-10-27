@@ -88,9 +88,99 @@ jobs:
           if-no-files-found: error
           path: apps/extension/vaultlet-extension-*.zip
 
+  android:
+    name: Android APK
+    runs-on: ubuntu-24.04  # the prebuilt cargo-ndk needs glibc 2.39
+    # Secrets cannot be tested in `if:`; go through the job environment.
+    env:
+      KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-37.0 ndk;29.0.14206865
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the Rust core for Android
+        run: node scripts/build-android-core.mjs
+      # Signed when the repository has the ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD /
+      # ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD secrets; otherwise the APK is unsigned.
+      - name: Prepare release signing
+        if: env.KEYSTORE_BASE64 != ''
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          cat > "$RUNNER_TEMP/signing.properties" <<EOF
+          storeFile=$RUNNER_TEMP/release.keystore
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+          echo "VAULTLET_ANDROID_SIGNING=$RUNNER_TEMP/signing.properties" >> "$GITHUB_ENV"
+      - name: Build the release APK
+        working-directory: apps/android
+        run: |
+          ./gradlew --no-daemon assembleRelease
+          version=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts)
+          apk=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          case "$apk" in *unsigned*) suffix=-unsigned;; *) suffix=;; esac
+          cp "$apk" "vaultlet-android-$version$suffix.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          if-no-files-found: error
+          path: apps/android/vaultlet-android-*.apk
+
+  # Unsigned .ipa: Apple distribution needs a paid developer account and its certificates, so
+  # this one is for sideloading with a tool that re-signs it (AltStore, Sideloadly, Xcode).
+  ios:
+    name: iOS app (unsigned)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Build the Rust core for iOS
+        run: node scripts/build-ios-core.mjs
+      - name: Archive
+        working-directory: apps/ios
+        run: |
+          xcodebuild archive -project Vaultlet.xcodeproj -scheme Vaultlet -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Vaultlet.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY= DEVELOPMENT_TEAM= | tail -40
+          test ${PIPESTATUS[0]} -eq 0
+          version=$(sed -n 's/.*MARKETING_VERSION: "\(.*\)".*/\1/p' project.yml)
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$RUNNER_TEMP/Vaultlet.xcarchive/Products/Applications/Vaultlet.app" "$RUNNER_TEMP/ipa/Payload/"
+          (cd "$RUNNER_TEMP/ipa" && zip -qr "$GITHUB_WORKSPACE/apps/ios/vaultlet-ios-$version-unsigned.ipa" Payload)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          if-no-files-found: error
+          path: apps/ios/vaultlet-ios-*-unsigned.ipa
+
   publish:
     name: Draft GitHub release
-    needs: [desktop, extension]
+    needs: [desktop, extension, android, ios]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-22.04
     steps:

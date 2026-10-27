@@ -7,7 +7,7 @@ description = "UniFFI bindings of vault-core for the Vaultlet mobile apps"
 
 [lib]
 name = "vault_ffi"
-crate-type = ["cdylib", "lib"]
+crate-type = ["cdylib", "staticlib", "lib"]
 
 [[bin]]
 name = "uniffi-bindgen"

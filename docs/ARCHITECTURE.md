@@ -11,8 +11,11 @@ Vaultlet 是一个 local-first 的密码管理器，定位是 Bitwarden 的无�
 crates/vault-core        Rust 核心库：KDBX 读写、数据模型、Bitwarden 导入、TOTP、URL 匹配、合并、WebDAV
 crates/vault-cli         调试用 CLI（vaultlet-cli）
 crates/native-host       浏览器 native messaging host（stdio <-> 本地 socket 的代理，无任何业务逻辑）
+crates/vault-ffi         移动端用的 vault-core（UniFFI：Kotlin / Swift 绑定）
 apps/desktop             Tauri 2 桌面端（src/ 前端 React，src-tauri/ 后端）
 apps/extension           浏览器插件（MV3，Chrome/Edge/Brave + Firefox）
+apps/android             Android 应用（Kotlin + Compose）
+apps/ios                 iOS 应用（SwiftUI）+ 密码自动填充扩展
 docs/                    文档
 ```
 
@@ -298,3 +301,14 @@ app → 扩展主动推送：`{ action:"event", event:"locked" | "unlocked" | "i
 - 设置页：通用、Vault 与同步、浏览器集成、导入、安全。
 - 视觉：跟随系统深浅色；中性灰 + 单一强调色（蓝）；圆角 8px；系统字体栈；macOS 透明标题栏（`titleBarStyle: overlay`）；无多余装饰。
 - 中英双语，缺省跟随系统，字符串集中在 `src/i18n/`。
+
+## 8. 移动端（Android / iOS）
+
+两个移动端都不直接碰 KDBX：一切经 `crates/vault-ffi` 的 UniFFI 接口（`open_vault`、`items`/`search`/`item`、`save_item`/`trash_item`、`totp`、`matches`、`sync_webdav`、`merge_file`…）。接口是同步的，调用方在 UI 线程之外执行；解密后的 vault 只存在于 Rust 对象里，锁定即释放。
+
+- **本地缓存**：加密的 vault 文件缓存在应用私有目录（iOS 为 App Group 容器，自动填充扩展共用），离线也能解锁；每次修改先写缓存，再后台同步。同步状态（ETag、未上传标记）由调用方持久化，重启后通过 `set_sync_state` 还原。
+- **WebDAV 模式**（两端）：`sync_webdav` 做 GET（If-None-Match）→ 两路合并 → PUT（If-Match）→ 412 重试，与桌面端一致。
+- **文件模式**（iOS）：用户在「文件」App 里选的 `.kdbx`（通常在 iCloud 云盘），以 security-scoped bookmark 保存。同步时 `NSFileCoordinator` 协调读取 → `merge_file` 两路合并 → 若本地有文件缺的改动，再协调写回（原子替换）；回到前台和每次修改后都会跑一次。
+- **生物识别解锁**：主密码用只有当前生物识别才能解开的密钥封存（Android Keystore `setUserAuthenticationRequired` + 指纹变更失效；iOS 钥匙串 `biometryCurrentSet`）。录入变化后封存的密码作废，需重新输入一次主密码。
+- **自动填充**：Android 用 AutofillService，网页域名只信任已知浏览器，其他应用按 `androidapp://<包名>` 匹配；iOS 用 Credential Provider 扩展，并把登录条目（标题、用户名、域名，不含密码）写入 `ASCredentialIdentityStore`，让 QuickType 直接推荐，扩展拿到条目 id 后自己解锁并取密码。
+- **平板**：Android 在宽度 ≥ 700 dp 时列表与条目并排（`BoxWithConstraints`）；iPad 用 `NavigationSplitView`，iPhone 用 `NavigationStack`。

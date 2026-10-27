@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -87,7 +89,11 @@ private fun Picker(vault: Vault, form: LoginForm, onPick: (ItemSummary) -> Unit)
     LaunchedEffect(Unit) { suggested = matches(vault, form) }
     LaunchedEffect(query) { results = (if (query.isBlank()) vault.items() else vault.search(query)).filter { it.kind == "login" } }
 
-    LazyColumn(Modifier.fillMaxSize().background(P.bg).tag("picker_list"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp)) {
+    // Centred and no wider than a phone on tablets.
+    LazyColumn(
+        Modifier.fillMaxSize().background(P.bg).wrapContentWidth().widthIn(max = 640.dp).tag("picker_list"),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
+    ) {
         item {
             Column(Modifier.statusBarsPadding().padding(top = 16.dp)) {
                 Text(stringResource(R.string.autofill_choose), style = Type.title, color = P.text)

@@ -100,5 +100,6 @@
     <string name="edit_login">Edit login</string>
     <string name="remove">Remove</string>
     <string name="regenerate">Generate another</string>
+    <string name="no_selection">Select an item</string>
     <string name="autofill_choose">Choose a login</string>
 </resources>

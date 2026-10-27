@@ -220,3 +220,42 @@ fn two_phones_sync_through_webdav() {
     assert!(b.pending_upload());
     assert!(b.sync_webdav(cfg).unwrap().uploaded);
 }
+
+/// File mode (iOS with a vault in iCloud Drive): two devices editing the same file, each merging
+/// the other's copy before writing its own.
+#[test]
+fn merge_file_two_way() {
+    let bytes = new_vault_bytes();
+    let phone = open_vault(bytes.clone(), PW.into()).unwrap();
+    let tablet = open_vault(bytes, PW.into()).unwrap();
+    assert!(matches!(phone.merge_file(b"not a vault".to_vec()), Err(VaultError::Failed { .. })));
+
+    // Nothing changed anywhere: nothing to do.
+    let same = phone.merge_file(tablet.serialize().unwrap()).unwrap();
+    assert_eq!(same, MergeOutcome { changed_locally: false, pending_upload: false });
+
+    phone.save_item(input("From phone")).unwrap();
+    tablet.save_item(input("From tablet")).unwrap();
+    // The tablet wrote the file first; the phone picks up its item and still has one to write.
+    let r = phone.merge_file(tablet.serialize().unwrap()).unwrap();
+    assert_eq!(r, MergeOutcome { changed_locally: true, pending_upload: true });
+    let titles = |v: &Vault| v.items().iter().map(|i| i.title.clone()).collect::<Vec<_>>();
+    assert_eq!(titles(&phone), ["Bank app", "From phone", "From tablet", "GitHub"]);
+    let file = phone.serialize().unwrap();
+    phone.mark_uploaded();
+    assert!(!phone.pending_upload());
+
+    // The tablet then reads the merged file: it gains the phone's item and has nothing to write.
+    let r = tablet.merge_file(file).unwrap();
+    assert_eq!(r, MergeOutcome { changed_locally: true, pending_upload: true }); // its own earlier edit was never marked written
+    assert_eq!(titles(&tablet), titles(&phone));
+    tablet.mark_uploaded();
+    let r = tablet.merge_file(phone.serialize().unwrap()).unwrap();
+    assert_eq!(r, MergeOutcome { changed_locally: false, pending_upload: false });
+
+    // Identities for the OS credential store: logins with a username, every URL.
+    let ids = phone.login_identities();
+    assert_eq!(ids.iter().map(|i| i.title.as_str()).collect::<Vec<_>>(), ["Bank app", "From phone", "From tablet", "GitHub"]);
+    assert_eq!(ids[3].urls, ["https://github.com/login"]);
+    assert_eq!(ids[3].username, "octocat");
+}
