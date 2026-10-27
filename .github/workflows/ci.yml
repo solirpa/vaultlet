@@ -74,7 +74,7 @@ jobs:
 
   android:
     name: Android app
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04  # the prebuilt cargo-ndk needs glibc 2.39
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
