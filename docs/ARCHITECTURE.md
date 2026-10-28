@@ -114,7 +114,12 @@ pub mod import {
 pub mod sync { /* 第 4 节 */ }
 ```
 
-### Bitwarden 导出格式要点
+### 导入格式要点
+
+格式按内容识别（`import::detect`）：JSON 为 Bitwarden（`encrypted:true` 则需文件密码）；CSV 看表头，含 `login_uri` 为 Bitwarden，含 `httpRealm`/`formActionOrigin` 为 Firefox，含 `OTPAuth`/`Title` 为 Safari，`name,url,username,password` 为 Chrome 系。
+
+#### Bitwarden
+
 
 - 明文 JSON：`{ encrypted:false, folders:[{id,name}], items:[{id,type,name,notes,favorite,folderId,login:{uris:[{uri,match}],username,password,totp},fields:[{name,value,type}],card:{...},identity:{...},secureNote:{}}] }`，type 1=login 2=note 3=card 4=identity；fields.type 0=text 1=hidden 2=boolean 3=linked。
 - CSV：表头 `folder,favorite,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp`；fields 是 `name: value` 换行分隔。
@@ -122,6 +127,16 @@ pub mod sync { /* 第 4 节 */ }
   派生：PBKDF2(password, salt, iterations) 或 Argon2id(password, SHA256(salt), mem MiB, iter, par) 得 32 字节 master key；
   HKDF-Expand(master, "enc") → encKey 32 字节，HKDF-Expand(master, "mac") → macKey 32 字节（HKDF-SHA256，无 extract）；
   EncString 格式 `2.<iv b64>|<ct b64>|<mac b64>`：AES-256-CBC + HMAC-SHA256(iv||ct)；先验 encKeyValidation 再解 data，data 解出来就是明文 JSON。
+- 条目沿用 Bitwarden 的 id，重复导入原地更新。
+
+#### 浏览器 CSV
+
+- Chrome / Edge / Brave / Opera / Vivaldi / Google 密码管理器：`name,url,username,password[,note]`。Android 应用的 URL 为 `android://<hash>@<包名>/`，转成 `androidapp://<包名>`。
+- Firefox：`url,username,password,httpRealm,formActionOrigin,guid,timeCreated,timeLastUsed,timePasswordChanged`（毫秒时间戳 → 创建 / 修改 / 最近使用时间）；`chrome://` 开头的 Firefox 自身条目跳过；httpRealm 写进备注。
+- Safari /「密码」App：`Title,URL,Username,Password,Notes,OTPAuth`，OTPAuth 列即 TOTP。
+- 没有标题时用主机名（去掉 `www.`）或包名；用户名和密码都为空的行跳过。
+- 浏览器导出没有稳定 id，按「站点 + 用户名」匹配已有的未删除登录：站点为主机名（小写、去 `www.`，非默认端口保留）或 `androidapp://<包名>`，用户名不区分大小写，没有网址时用标题代替站点。
+  匹配到且密码相同 → 不动；密码不同（或带来对方没有的 TOTP / 备注 / 新网址）→ 更新该登录，旧版本进历史；没匹配到 → 新建。文件内同一登录出现多次时取修改时间最新的一条，其余计为重复。
 
 ## 3. 存储布局与应用设置（桌面端）
 

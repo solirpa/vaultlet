@@ -82,7 +82,7 @@ export function UnlockScreen({ onCreate }: UnlockScreenProps) {
             {t('unlock.createNew')}
           </LinkButton>
           <LinkButton icon={<Import size={14} />} onClick={() => onCreate(true)}>
-            {t('unlock.importBitwarden')}
+            {t('unlock.import')}
           </LinkButton>
         </div>
       }

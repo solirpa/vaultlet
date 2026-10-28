@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, Subcommand};
-use vault_core::import::{self, BitwardenSource};
+use vault_core::import;
 use vault_core::sync::folder::atomic_write;
 use vault_core::{Credentials, Item, ItemKind, Vault};
 
@@ -53,10 +53,17 @@ enum Cmd {
         #[arg(long)]
         folder: Option<String>,
     },
-    /// Import a Bitwarden export (.json, .csv or password-protected .json).
-    ImportBitwarden {
+    /// Import an export: Chrome / Edge / Brave, Firefox or Safari CSV, or Bitwarden (.json,
+    /// .csv or password-protected .json). Logins from browsers are matched by site and
+    /// username, so importing again only adds what is new.
+    #[command(alias = "import-bitwarden")]
+    Import {
         file: PathBuf,
         export: PathBuf,
+        /// The export's format (detected when omitted): chrome-csv, firefox-csv, safari-csv,
+        /// bitwarden-json, bitwarden-encrypted-json or bitwarden-csv.
+        #[arg(long)]
+        format: Option<String>,
         /// Password of a password-protected export.
         #[arg(long)]
         import_password: Option<String>,
@@ -235,22 +242,19 @@ fn main() -> Result<()> {
             save(file, &mut v, &c)?;
             println!("added {} ({})", saved.title, saved.id);
         }
-        Cmd::ImportBitwarden { file, export, import_password, dry_run } => {
+        Cmd::Import { file, export, format, import_password, dry_run } => {
             let text = std::fs::read_to_string(export).with_context(|| format!("reading {}", export.display()))?;
-            let is_csv = export.extension().is_some_and(|e| e.eq_ignore_ascii_case("csv")) || text.trim_start().starts_with("folder,");
-            let src = if is_csv {
-                BitwardenSource::Csv(text)
-            } else if import::is_encrypted_json(&text) {
-                let pw = match import_password {
-                    Some(p) => p.clone(),
-                    None => rpassword::prompt_password("Export file password: ")?,
-                };
-                BitwardenSource::EncryptedJson { json: text, password: pw }
-            } else {
-                BitwardenSource::Json(text)
+            let fmt = match format {
+                Some(f) => import::Format::parse(f).ok_or_else(|| anyhow!("unknown format {f}"))?,
+                None => import::detect(&text).ok_or_else(|| anyhow!("not a supported export; pass --format"))?,
             };
-            let r = import::bitwarden(src).map_err(|e| anyhow!("{e}"))?;
-            println!("parsed {} items, {} folders", r.items.len(), r.folders.len());
+            let password = match (fmt, import_password) {
+                (import::Format::BitwardenEncryptedJson, Some(p)) => Some(p.clone()),
+                (import::Format::BitwardenEncryptedJson, None) => Some(rpassword::prompt_password("Export file password: ")?),
+                _ => None,
+            };
+            let r = import::parse(fmt, &text, password.as_deref()).map_err(|e| anyhow!("{e}"))?;
+            println!("{}: {} items, {} folders", fmt.as_str(), r.items.len(), r.folders.len());
             for s in &r.skipped {
                 println!("  note: {s}");
             }
@@ -259,9 +263,12 @@ fn main() -> Result<()> {
             }
             let c = creds(&cli, !file.exists())?;
             let mut v = if file.exists() { open(file, &c)? } else { Vault::create("Vaultlet") };
-            let n = import::apply(&mut v, &r).map_err(|e| anyhow!("{e}"))?;
+            let s = import::apply(&mut v, &r).map_err(|e| anyhow!("{e}"))?;
             save(file, &mut v, &c)?;
-            println!("imported {n} items into {}", file.display());
+            println!(
+                "{} new, {} updated, {} already there, {} repeated in the file -> {}",
+                s.created, s.updated, s.unchanged, s.duplicates, file.display()
+            );
         }
         Cmd::Totp { file, query } => {
             let c = creds(&cli, false)?;

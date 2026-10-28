@@ -1,0 +1,4 @@
+"url","username","password","httpRealm","formActionOrigin","guid","timeCreated","timeLastUsed","timePasswordChanged"
+"https://shop.example.com","alex@example.com","Sh0p-demo!x7Kq",,"https://shop.example.com","{0b1f4c2e-1111-4a2b-9c3d-000000000001}","1704164645000","1709528767000","1709528767000"
+"chrome://FirefoxAccounts","alex@example.com","fxa-demo-secret",,,"{0b1f4c2e-1111-4a2b-9c3d-000000000002}","1704164645000","1704164645000","1704164645000"
+"http://192.168.1.1","admin","r0uter-demo","Router admin",,"{0b1f4c2e-1111-4a2b-9c3d-000000000003}","1704164645000","1704164645000","1704164645000"

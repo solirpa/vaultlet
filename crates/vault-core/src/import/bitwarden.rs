@@ -1,6 +1,6 @@
 //! Bitwarden import: plaintext JSON, CSV and password-protected JSON exports.
 //!
-//! Format notes are in `docs/ARCHITECTURE.md` ("Bitwarden 导出格式要点").
+//! Format notes are in `docs/ARCHITECTURE.md` ("导入格式要点").
 
 use std::collections::HashMap;
 
@@ -10,9 +10,9 @@ use serde::Deserialize;
 use serde_json::Value as Json;
 use uuid::Uuid;
 
+use super::ImportResult;
 use crate::error::{Error, Result};
 use crate::model::{Field, Folder, Item, ItemKind};
-use crate::vault::Vault;
 
 /// Source of a Bitwarden export.
 #[derive(Debug, Clone)]
@@ -20,18 +20,6 @@ pub enum BitwardenSource {
     Json(String),
     Csv(String),
     EncryptedJson { json: String, password: String },
-}
-
-/// A parsed export, not yet written to a vault.
-#[derive(Debug, Clone, Default)]
-pub struct ImportResult {
-    pub items: Vec<Item>,
-    /// Folders in parents-first order; `parent` references other folders in this list.
-    pub folders: Vec<Folder>,
-    /// Human-readable notes about data that could not be mapped.
-    pub skipped: Vec<String>,
-    /// Historical passwords per item id (oldest first), applied as KDBX history by [`apply`].
-    pub password_history: HashMap<Uuid, Vec<(DateTime<Utc>, String)>>,
 }
 
 /// Sniff whether a file is a password-protected Bitwarden export.
@@ -57,52 +45,6 @@ pub fn bitwarden(src: BitwardenSource) -> Result<ImportResult> {
             parse_json(&plain)
         }
     }
-}
-
-/// Write an [`ImportResult`] into the vault. Folders are matched by name and parent, so
-/// importing twice does not duplicate them; items keep Bitwarden's ids, so re-importing updates
-/// in place. Returns the number of items written.
-pub fn apply(vault: &mut Vault, r: &ImportResult) -> Result<usize> {
-    let mut folder_map: HashMap<Uuid, Uuid> = HashMap::new();
-    let existing = vault.folders();
-    for f in &r.folders {
-        let parent = f.parent.and_then(|p| folder_map.get(&p).copied());
-        let found = existing
-            .iter()
-            .chain(vault.folders().iter())
-            .find(|e| e.name == f.name && e.parent == parent)
-            .map(|e| e.id);
-        let id = match found {
-            Some(id) => id,
-            None => {
-                vault
-                    .upsert_folder(Folder {
-                        id: Uuid::nil(),
-                        name: f.name.clone(),
-                        parent,
-                    })?
-                    .id
-            }
-        };
-        folder_map.insert(f.id, id);
-    }
-    let mut n = 0;
-    for item in &r.items {
-        let mut it = item.clone();
-        it.folder = it.folder.and_then(|f| folder_map.get(&f).copied());
-        // Replay password history (oldest first) so KDBX history matches Bitwarden's.
-        if let Some(hist) = r.password_history.get(&item.id) {
-            let mut prev = it.clone();
-            for (when, pw) in hist {
-                prev.password = pw.clone();
-                prev.deleted = false;
-                vault.upsert_item_at(prev.clone(), Some(*when))?;
-            }
-        }
-        vault.upsert_item_at(it, Some(item.modified))?;
-        n += 1;
-    }
-    Ok(n)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -685,11 +627,12 @@ pub mod encrypted {
 
 #[cfg(test)]
 mod tests {
+    use super::super::apply;
     use super::*;
-    use crate::vault::KdfParams;
+    use crate::vault::{KdfParams, Vault};
 
-    const JSON: &str = include_str!("../tests/fixtures/bitwarden.json");
-    const CSV: &str = include_str!("../tests/fixtures/bitwarden.csv");
+    const JSON: &str = include_str!("../../tests/fixtures/bitwarden.json");
+    const CSV: &str = include_str!("../../tests/fixtures/bitwarden.csv");
 
     #[test]
     fn json_maps_all_kinds() {
@@ -742,7 +685,7 @@ mod tests {
     fn apply_is_idempotent_and_replays_history() {
         let r = bitwarden(BitwardenSource::Json(JSON.into())).unwrap();
         let mut v = Vault::create_with_kdf("T", KdfParams::fast());
-        assert_eq!(apply(&mut v, &r).unwrap(), 6);
+        assert_eq!(apply(&mut v, &r).unwrap().created, 6);
         assert_eq!(v.items().len(), 6);
         assert_eq!(v.folders().len(), 3);
         let gh = v.items().into_iter().find(|i| i.title == "GitHub").unwrap();
@@ -751,7 +694,7 @@ mod tests {
         assert_eq!(e.history.as_ref().unwrap().get_entries().len(), 2);
         // Second import: same ids → updates, no duplicates.
         let r2 = bitwarden(BitwardenSource::Json(JSON.into())).unwrap();
-        apply(&mut v, &r2).unwrap();
+        assert_eq!(apply(&mut v, &r2).unwrap().updated, 6);
         assert_eq!(v.items().len(), 6);
         assert_eq!(v.folders().len(), 3);
     }

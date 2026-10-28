@@ -110,15 +110,33 @@ export interface PasswordGenerateOptions {
   symbols: boolean;
 }
 
+export type ImportFormat =
+  | 'chrome-csv'
+  | 'firefox-csv'
+  | 'safari-csv'
+  | 'bitwarden-json'
+  | 'bitwarden-encrypted-json'
+  | 'bitwarden-csv';
+
+/** What an import does to the vault (or would do, in a preview). */
+export interface ImportSummary {
+  created: number;
+  /** Existing items changed: a new password, or a TOTP secret / note they did not have. */
+  updated: number;
+  /** Logins already in the vault with the same password. */
+  unchanged: number;
+  /** Repeats of the same login within the file. */
+  duplicates: number;
+}
+
 export interface ImportPreview {
+  format: ImportFormat;
   items: number;
   folders: number;
   skipped: string[];
   needsPassword: boolean;
-}
-
-export interface ImportResult {
-  imported: number;
+  /** Absent while the vault is locked. */
+  summary: ImportSummary | null;
 }
 
 export type CloudProvider = 'icloud' | 'dropbox' | 'onedrive';
