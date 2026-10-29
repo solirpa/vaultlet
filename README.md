@@ -87,6 +87,21 @@ Needs Xcode 16 or newer (iOS 17+). Set your development team under Signing & Cap
 
 On first launch choose where the vault lives: the `.kdbx` your Mac syncs through iCloud Drive (picked in the Files app; changes merge back into the same file), or a WebDAV server as on Android. The encrypted vault is cached on the device, so unlocking works offline. Turn on Password AutoFill in Settings → General → AutoFill & Passwords → Vaultlet; logins then show up in the QuickType bar in Safari and apps, and the extension unlocks with Face ID / Touch ID. On iPad the list and the open item sit side by side.
 
+#### Releases
+
+Tags build an unsigned `.ipa` by default. With an Apple Developer Program membership the release workflow signs the app and uploads it to TestFlight instead; it switches over when these repository secrets exist:
+
+| Secret | Content |
+|---|---|
+| `APPLE_TEAM_ID` | Your team id (Membership page in the developer portal). |
+| `IOS_CERTIFICATE_P12_BASE64` | An *Apple Distribution* certificate with its private key, exported as `.p12`, base64-encoded. |
+| `IOS_CERTIFICATE_PASSWORD` | The `.p12` password. |
+| `IOS_PROFILE_APP_BASE64` | Provisioning profile for `com.vaultlet.ios` (App Store or Ad Hoc; must include the App Group), base64-encoded. |
+| `IOS_PROFILE_AUTOFILL_BASE64` | Provisioning profile for `com.vaultlet.ios.autofill`, base64-encoded. |
+| `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_KEY_BASE64` | An App Store Connect API key (id, issuer id, the `.p8` base64-encoded) for the TestFlight upload. Leave them out to only attach the signed `.ipa` to the release. |
+
+The repository variable `IOS_EXPORT_METHOD` picks the export method: `app-store-connect` (default) or `ad-hoc`. Encode a file with `base64 -i file | gh secret set NAME --repo <owner>/vaultlet`.
+
 ### Command line
 
 ```bash

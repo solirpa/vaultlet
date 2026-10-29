@@ -87,6 +87,21 @@ open apps/ios/Vaultlet.xcodeproj           # 然后在 iPhone 或 iPad 上运行
 
 首次启动选择密码库的来源：Mac 通过 iCloud 云盘同步的那个 `.kdbx`（在「文件」App 里选，修改会合并回同一个文件），或像 Android 一样连接 WebDAV。加密后的密码库会缓存在设备上，离线也能解锁。在 设置 → 通用 → 自动填充与密码 里打开 Vaultlet，之后 Safari 和各应用的键盘上方会直接推荐登录信息，扩展用面容 / 触控 ID 解锁。iPad 上列表与打开的条目并排显示。
 
+#### 发布
+
+打 tag 默认产出未签名的 `.ipa`。有 Apple Developer Program 账号后，release 工作流会改为签名并上传 TestFlight；仓库里存在下面这些 secrets 时自动切换：
+
+| Secret | 内容 |
+|---|---|
+| `APPLE_TEAM_ID` | 团队 ID（开发者后台 Membership 页面）。 |
+| `IOS_CERTIFICATE_P12_BASE64` | *Apple Distribution* 证书连同私钥导出的 `.p12`，base64 编码。 |
+| `IOS_CERTIFICATE_PASSWORD` | `.p12` 的密码。 |
+| `IOS_PROFILE_APP_BASE64` | `com.vaultlet.ios` 的描述文件（App Store 或 Ad Hoc，需包含 App Group），base64 编码。 |
+| `IOS_PROFILE_AUTOFILL_BASE64` | `com.vaultlet.ios.autofill` 的描述文件，base64 编码。 |
+| `APP_STORE_CONNECT_KEY_ID`、`APP_STORE_CONNECT_ISSUER_ID`、`APP_STORE_CONNECT_KEY_BASE64` | App Store Connect API 密钥（Key ID、Issuer ID、`.p8` 的 base64），用于上传 TestFlight。不设的话只把签好名的 `.ipa` 附到 Release 上。 |
+
+仓库变量 `IOS_EXPORT_METHOD` 选择导出方式：`app-store-connect`（默认）或 `ad-hoc`。文件编码用 `base64 -i 文件 | gh secret set 名字 --repo <owner>/vaultlet`。
+
 ### 命令行
 
 ```bash
