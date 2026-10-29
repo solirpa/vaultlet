@@ -144,27 +144,25 @@ jobs:
           if-no-files-found: error
           path: apps/android/vaultlet-android-*.apk
 
-  # Unsigned .ipa: Apple distribution needs a paid developer account and its certificates, so
-  # this one is for sideloading with a tool that re-signs it (AltStore, Sideloadly, Xcode).
-  # Signed and uploaded to TestFlight when the repository has the IOS_* / APP_STORE_CONNECT_*
-  # secrets (see README → iOS → Releases); otherwise an unsigned .ipa for re-signing by hand.
+  # Signed, and uploaded to TestFlight, when the repository has the IOS_* / APP_STORE_CONNECT_*
+  # secrets (see README → iOS → Releases). Otherwise an unsigned .ipa for sideloading with a
+  # tool that re-signs it (AltStore, Sideloadly, Xcode).
+  #
+  # The secrets are handed only to the steps that use them, and only after the Rust core is
+  # built: dependency build scripts, third-party actions and the build tools never see them.
   ios:
-    name: iOS app
+    name: iOS app (release)
     runs-on: macos-latest
-    # Secrets cannot be tested in `if:`; go through the job environment.
     env:
-      CERT_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
-      CERT_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-      PROFILE_APP_BASE64: ${{ secrets.IOS_PROFILE_APP_BASE64 }}
-      PROFILE_AUTOFILL_BASE64: ${{ secrets.IOS_PROFILE_AUTOFILL_BASE64 }}
-      TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-      ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-      ASC_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}
+      # Whether the secrets exist, never their values (secrets cannot be tested in `if:`).
+      SIGNING: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 != '' && secrets.IOS_CERTIFICATE_PASSWORD != '' && secrets.IOS_PROFILE_APP_BASE64 != '' && secrets.IOS_PROFILE_AUTOFILL_BASE64 != '' && secrets.APPLE_TEAM_ID != '' }}
+      UPLOAD: ${{ secrets.APP_STORE_CONNECT_KEY_ID != '' && secrets.APP_STORE_CONNECT_ISSUER_ID != '' && secrets.APP_STORE_CONNECT_KEY_BASE64 != '' }}
       # app-store-connect (TestFlight / App Store) or ad-hoc (devices listed in the profiles).
       EXPORT_METHOD: ${{ vars.IOS_EXPORT_METHOD || 'app-store-connect' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
@@ -184,28 +182,38 @@ jobs:
       # ---- signed path ---------------------------------------------------------------------
       - name: Install the signing certificate and provisioning profiles
         id: signing
-        if: env.CERT_P12_BASE64 != '' && env.PROFILE_APP_BASE64 != '' && env.PROFILE_AUTOFILL_BASE64 != '' && env.TEAM_ID != ''
+        if: env.SIGNING == 'true'
+        env:
+          CERT_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          PROFILE_APP_BASE64: ${{ secrets.IOS_PROFILE_APP_BASE64 }}
+          PROFILE_AUTOFILL_BASE64: ${{ secrets.IOS_PROFILE_AUTOFILL_BASE64 }}
         run: |
           set -euo pipefail
-          # A throwaway keychain for this job; the login keychain is left alone.
+          umask 077
+          work="$RUNNER_TEMP/signing"
+          mkdir -p "$work"
+          trap 'rm -rf "$work"' EXIT
+          # A throwaway keychain for this job; the login keychain is left alone. Its output is
+          # set first so the cleanup step removes it even if a later command here fails.
           keychain="$RUNNER_TEMP/signing.keychain-db"
           keychain_password=$(openssl rand -hex 24)
-          echo "$CERT_P12_BASE64" | base64 -d > "$RUNNER_TEMP/certificate.p12"
           security create-keychain -p "$keychain_password" "$keychain"
-          security set-keychain-settings -lut 21600 "$keychain"
+          echo "keychain=$keychain" >> "$GITHUB_OUTPUT"
+          security set-keychain-settings -lut 3600 "$keychain"
           security unlock-keychain -p "$keychain_password" "$keychain"
-          security import "$RUNNER_TEMP/certificate.p12" -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          printf '%s' "$CERT_P12_BASE64" | base64 -d > "$work/certificate.p12"
+          # Only codesign may use the private key (no -A, which would open it to every process).
+          security import "$work/certificate.p12" -P "$CERT_PASSWORD" -t cert -f pkcs12 -k "$keychain" \
+            -T /usr/bin/codesign -T /usr/bin/security
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" > /dev/null
           security list-keychains -d user -s "$keychain" login.keychain-db
-          rm -f "$RUNNER_TEMP/certificate.p12"
-          echo "keychain=$keychain" >> "$GITHUB_OUTPUT"
 
           # Profiles go where Xcode looks for them; their names are passed to xcodebuild.
           install_profile() { # <base64> <output-name>
-            local plist="$RUNNER_TEMP/$2.plist" file="$RUNNER_TEMP/$2.mobileprovision"
-            echo "$1" | base64 -d > "$file"
+            local file="$work/$2.mobileprovision" plist="$work/$2.plist" uuid name
+            printf '%s' "$1" | base64 -d > "$file"
             security cms -D -i "$file" > "$plist"
-            local uuid name
             uuid=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$plist")
             name=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$plist")
             for dir in "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
@@ -220,6 +228,7 @@ jobs:
         if: steps.signing.outcome == 'success'
         working-directory: apps/ios
         env:
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           PROFILE_APP: ${{ steps.signing.outputs.profile_app }}
           PROFILE_AUTOFILL: ${{ steps.signing.outputs.profile_autofill }}
         run: |
@@ -238,6 +247,7 @@ jobs:
         if: steps.signing.outcome == 'success'
         working-directory: apps/ios
         env:
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           PROFILE_APP: ${{ steps.signing.outputs.profile_app }}
           PROFILE_AUTOFILL: ${{ steps.signing.outputs.profile_autofill }}
           VERSION: ${{ steps.version.outputs.version }}
@@ -263,31 +273,39 @@ jobs:
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Vaultlet.xcarchive" \
             -exportOptionsPlist "$RUNNER_TEMP/export.plist" -exportPath "$RUNNER_TEMP/export" | tail -20
           test "${PIPESTATUS[0]}" -eq 0
+          rm -f "$RUNNER_TEMP/export.plist"
           mv "$RUNNER_TEMP/export/Vaultlet.ipa" "vaultlet-ios-$VERSION.ipa"
 
       - name: Upload to TestFlight
-        if: steps.signing.outcome == 'success' && env.EXPORT_METHOD == 'app-store-connect' && env.ASC_KEY_ID != '' && env.ASC_ISSUER_ID != '' && env.ASC_KEY_BASE64 != ''
+        if: steps.signing.outcome == 'success' && env.UPLOAD == 'true' && env.EXPORT_METHOD == 'app-store-connect'
         working-directory: apps/ios
         env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_KEY_BASE64 }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
-          # altool looks for the key in ./private_keys or ~/private_keys.
+          umask 077
+          # altool looks for the key in ~/private_keys; removed however the upload ends.
+          trap 'rm -rf "$HOME/private_keys"' EXIT
           mkdir -p "$HOME/private_keys"
-          echo "$ASC_KEY_BASE64" | base64 -d > "$HOME/private_keys/AuthKey_$ASC_KEY_ID.p8"
+          printf '%s' "$ASC_KEY_BASE64" | base64 -d > "$HOME/private_keys/AuthKey_$ASC_KEY_ID.p8"
           xcrun altool --upload-app -f "vaultlet-ios-$VERSION.ipa" -t ios \
             --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
-          rm -f "$HOME/private_keys/AuthKey_$ASC_KEY_ID.p8"
 
-      - name: Remove the signing keychain
+      - name: Remove the signing keychain and profiles
         if: always() && steps.signing.outputs.keychain != ''
+        env:
+          KEYCHAIN: ${{ steps.signing.outputs.keychain }}
         run: |
           security list-keychains -d user -s login.keychain-db
-          security delete-keychain "${{ steps.signing.outputs.keychain }}"
+          security delete-keychain "$KEYCHAIN" || true
+          rm -rf "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
 
       # ---- unsigned path -------------------------------------------------------------------
       - name: Archive (unsigned)
-        if: steps.signing.outcome == 'skipped'
+        if: env.SIGNING != 'true'
         working-directory: apps/ios
         env:
           VERSION: ${{ steps.version.outputs.version }}
