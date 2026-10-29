@@ -1,0 +1,8 @@
+﻿name,url,username,password,note
+github.com,https://github.com/login,alex@example.com,Gh-demo-T9!pw,"Recovery codes are in the safe.
+Second line, with a comma."
+Example Bank,android://Zm9vYmFyYmF6cXV4==@com.example.bank/,alex@example.com,Bank-demo-pw-5,
+,https://www.shop.example.com/login,,Sh0p-only-pw,
+accounts.google.com,https://accounts.google.com/signin,alex.chen@example.com,G00gle-demo-pw,
+github.com,https://github.com/session,alex@example.com,Gh-demo-T9!pw,
+empty.example.com,https://empty.example.com/,,,

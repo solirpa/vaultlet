@@ -1,0 +1,3 @@
+Title,URL,Username,Password,Notes,OTPAuth
+github.com (alex@example.com),https://github.com/,alex@example.com,Gh-demo-T9!pw,,otpauth://totp/GitHub:alex%40example.com?secret=JBSWY3DPEHPK3PXP&issuer=GitHub
+dash.cloudflare.com (alex@example.com),https://dash.cloudflare.com/,alex@example.com,Cf-demo-pw-8,Team account,

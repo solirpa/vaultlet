@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 use uuid::Uuid;
-use vault_core::import::{self, BitwardenSource};
+use vault_core::import::{self, Format, ImportSummary};
 use vault_core::sync::detect_cloud_folders;
 use vault_core::{Credentials, Error, Folder, Item, ItemSummary, Result, Vault};
 
@@ -313,50 +313,74 @@ pub async fn folder_delete<R: Runtime>(app: AppHandle<R>, state: State<'_, AppSt
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportPreview {
+    pub format: Format,
     pub items: usize,
     pub folders: usize,
     pub skipped: Vec<String>,
     pub needs_password: bool,
+    /// What importing would do to the open vault; absent while it is locked.
+    pub summary: Option<ImportSummary>,
 }
 
-#[derive(Serialize)]
-pub struct ImportOutcome {
-    pub imported: usize,
-}
-
-fn read_export(path: &str, password: Option<String>) -> Res<std::result::Result<import::ImportResult, ()>> {
+/// The export's format (detected unless given) and, unless it still needs its file password,
+/// the parsed contents.
+fn read_export(path: &str, format: Option<String>, password: Option<String>) -> Res<(Format, Option<import::ImportResult>)> {
     let text = std::fs::read_to_string(path)?;
-    let is_csv = path.to_lowercase().ends_with(".csv") || text.trim_start().starts_with("folder,");
-    let src = if is_csv {
-        BitwardenSource::Csv(text)
-    } else if import::is_encrypted_json(&text) {
-        match password.filter(|p| !p.is_empty()) {
-            Some(p) => BitwardenSource::EncryptedJson { json: text, password: p },
-            None => return Ok(Err(())),
-        }
-    } else {
-        BitwardenSource::Json(text)
+    let mut fmt = match format {
+        Some(f) => Format::parse(&f).ok_or_else(|| Error::InvalidArgument(format!("unknown import format {f}")))?,
+        None => import::detect(&text).ok_or_else(|| {
+            Error::Import("not a supported export: use a Chrome, Edge, Brave, Firefox, Safari or Bitwarden export file".into())
+        })?,
     };
-    Ok(Ok(import::bitwarden(src)?))
-}
-
-#[tauri::command]
-pub async fn import_bitwarden_preview(path: String, password: Option<String>) -> Res<ImportPreview> {
-    match read_export(&path, password)? {
-        Err(()) => Ok(ImportPreview { items: 0, folders: 0, skipped: vec![], needs_password: true }),
-        Ok(r) => Ok(ImportPreview { items: r.items.len(), folders: r.folders.len(), skipped: r.skipped, needs_password: false }),
+    if fmt == Format::BitwardenJson && import::is_encrypted_json(&text) {
+        fmt = Format::BitwardenEncryptedJson;
     }
+    let password = password.filter(|p| !p.is_empty());
+    if fmt == Format::BitwardenEncryptedJson && password.is_none() {
+        return Ok((fmt, None));
+    }
+    Ok((fmt, Some(import::parse(fmt, &text, password.as_deref())?)))
 }
 
 #[tauri::command]
-pub async fn import_bitwarden<R: Runtime>(app: AppHandle<R>, state: State<'_, AppState>, path: String, password: Option<String>) -> Res<ImportOutcome> {
-    let r = match read_export(&path, password)? {
-        Err(()) => return Err(Error::ImportPassword("password required".into())),
-        Ok(r) => r,
+pub async fn import_preview(state: State<'_, AppState>, path: String, format: Option<String>, password: Option<String>) -> Res<ImportPreview> {
+    let (format, parsed) = read_export(&path, format, password)?;
+    let Some(r) = parsed else {
+        return Ok(ImportPreview { format, items: 0, folders: 0, skipped: vec![], needs_password: true, summary: None });
     };
-    let imported = mutate(&app, &state, |v| import::apply(v, &r)).await?;
+    let summary = state.vault.lock().await.as_ref().map(|u| import::plan(&u.vault, &r));
+    Ok(ImportPreview { format, items: r.items.len(), folders: r.folders.len(), skipped: r.skipped, needs_password: false, summary })
+}
+
+#[tauri::command]
+pub async fn import_run<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, AppState>,
+    path: String,
+    format: Option<String>,
+    password: Option<String>,
+) -> Res<ImportSummary> {
+    let r = match read_export(&path, format, password)? {
+        (_, Some(r)) => r,
+        (_, None) => return Err(Error::ImportPassword("password required".into())),
+    };
+    let summary = mutate(&app, &state, |v| import::apply(v, &r)).await?;
+    *state.last_import.lock().await = Some(PathBuf::from(&path));
     let _ = app.emit("items:changed", ());
-    Ok(ImportOutcome { imported })
+    Ok(summary)
+}
+
+/// Delete the export file that was just imported (plaintext exports should not linger). Only
+/// that file: the path must match the last successful import.
+#[tauri::command]
+pub async fn import_delete_file(state: State<'_, AppState>, path: String) -> Res<()> {
+    let mut last = state.last_import.lock().await;
+    if last.as_deref() != Some(std::path::Path::new(&path)) {
+        return Err(Error::InvalidArgument("only the file that was just imported can be deleted".into()));
+    }
+    std::fs::remove_file(&path)?;
+    *last = None;
+    Ok(())
 }
 
 // ---- settings & sync --------------------------------------------------------------------------

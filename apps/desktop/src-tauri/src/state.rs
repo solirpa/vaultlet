@@ -109,6 +109,8 @@ pub struct AppState {
     pub secrets: Secrets,
     pub watcher: Mutex<Option<crate::store::WatchHandle>>,
     pub icons: crate::icons::IconService,
+    /// The export file last imported successfully: the only one `import_delete_file` deletes.
+    pub last_import: Mutex<Option<std::path::PathBuf>>,
 }
 
 impl AppState {

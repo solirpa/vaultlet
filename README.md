@@ -10,7 +10,7 @@ A local-first password manager: a serverless alternative to Bitwarden.
 - Android app: Kotlin + Jetpack Compose on the same Rust core; autofill in apps and browsers, fingerprint unlock, WebDAV sync. Phones and tablets (list and item side by side on wide screens).
 - iOS app: SwiftUI on the same Rust core, for iPhone and iPad; Password AutoFill in Safari and apps, Face ID / Touch ID unlock, the vault in iCloud Drive (via the Files app) or on WebDAV.
 - Browser extension: Chrome / Edge / Brave / Firefox. It talks to the desktop app over Native Messaging; keys never leave the desktop process.
-- Imports Bitwarden exports (JSON / CSV / password-protected JSON), with TOTP support.
+- Imports passwords exported from Chrome / Edge / Brave, Firefox, Safari and Bitwarden (JSON / CSV / password-protected JSON); logins are matched by site and username, so importing again only adds what is new. TOTP support.
 
 > **Status:** a personal project that has not had an independent security audit. Use it at your own risk and keep backups of your vault file. Please report vulnerabilities privately; see [SECURITY.md](SECURITY.md).
 
@@ -42,7 +42,7 @@ cd apps/desktop && pnpm install && pnpm tauri:dev
 ```
 
 On first launch, choose where the vault lives (a local folder, a detected iCloud Drive / Dropbox / OneDrive folder, or WebDAV) and set a master password.
-Then pick a Bitwarden export (`.json` / `.csv` / password-protected `.json`) under Settings → Import.
+Then import your passwords under Settings → Import: a CSV exported from Chrome / Edge / Brave, Firefox or Safari, or a Bitwarden export (`.json` / `.csv` / password-protected `.json`). The format is detected from the file; afterwards the app offers to delete the plaintext export.
 
 To build installable packages: `pnpm tauri:build` (output in `target/release/bundle/`; on Windows this produces an `.msi` and an NSIS `-setup.exe`). Build paths and the builder's user name are stripped from the release binaries.
 
@@ -90,7 +90,7 @@ On first launch choose where the vault lives: the `.kdbx` your Mac syncs through
 ### Command line
 
 ```bash
-cargo run -p vault-cli -- import-bitwarden ~/Vaultlet.kdbx ~/Downloads/bitwarden_export.json
+cargo run -p vault-cli -- import ~/Vaultlet.kdbx ~/Downloads/bitwarden_export.json   # or a browser CSV; --format to override detection
 cargo run -p vault-cli -- ls ~/Vaultlet.kdbx
 cargo run -p vault-cli -- totp ~/Vaultlet.kdbx GitHub
 ```

@@ -16,7 +16,7 @@ pub mod vault;
 
 pub use error::{Error, Result};
 pub use generator::{password_generate, strength};
-pub use import::{BitwardenSource, ImportResult};
+pub use import::{BitwardenSource, Format as ImportFormat, ImportResult, ImportSummary};
 pub use matching::match_items;
 pub use merge::MergeReport;
 pub use model::{Field, Folder, Item, ItemKind, ItemSummary};

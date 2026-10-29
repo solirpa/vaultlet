@@ -68,6 +68,7 @@ pub fn configure<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
                 secrets,
                 watcher: Mutex::new(None),
                 icons: icons::IconService::new(&data_dir_for_icons),
+                last_import: Mutex::new(None),
             });
             let handle = app.handle().clone();
             #[cfg(debug_assertions)]
@@ -103,8 +104,9 @@ pub fn configure<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
             commands::folders_list,
             commands::folder_save,
             commands::folder_delete,
-            commands::import_bitwarden_preview,
-            commands::import_bitwarden,
+            commands::import_preview,
+            commands::import_run,
+            commands::import_delete_file,
             commands::settings_get,
             commands::settings_set,
             commands::cloud_folders_detect,

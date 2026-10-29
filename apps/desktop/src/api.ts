@@ -8,8 +8,9 @@ import type {
   EventMap,
   EventName,
   Folder,
+  ImportFormat,
   ImportPreview,
-  ImportResult,
+  ImportSummary,
   Item,
   ItemSummary,
   PairedBrowser,
@@ -43,8 +44,10 @@ export interface Api {
   folderSave(folder: Folder): Promise<Folder>;
   folderDelete(id: string): Promise<void>;
   // import
-  importBitwardenPreview(args: { path: string; password?: string }): Promise<ImportPreview>;
-  importBitwarden(args: { path: string; password?: string }): Promise<ImportResult>;
+  importPreview(args: { path: string; format?: ImportFormat; password?: string }): Promise<ImportPreview>;
+  importRun(args: { path: string; format?: ImportFormat; password?: string }): Promise<ImportSummary>;
+  /** Deletes the export file just imported (and only that one). */
+  importDeleteFile(args: { path: string }): Promise<void>;
   // settings & sync
   settingsGet(): Promise<Settings>;
   settingsSet(settings: Settings): Promise<void>;
@@ -101,8 +104,9 @@ function createTauriApi(): Api {
     folderSave: (folder) => inv('folder_save', { folder }),
     folderDelete: (id) => inv('folder_delete', { id }),
 
-    importBitwardenPreview: (a) => inv('import_bitwarden_preview', a),
-    importBitwarden: (a) => inv('import_bitwarden', a),
+    importPreview: (a) => inv('import_preview', a),
+    importRun: (a) => inv('import_run', a),
+    importDeleteFile: (a) => inv('import_delete_file', a),
 
     settingsGet: () => inv('settings_get'),
     settingsSet: (settings) => inv('settings_set', { settings }),

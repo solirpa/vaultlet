@@ -10,7 +10,7 @@ Local-first 密码管理器，Bitwarden 的无服务器平替。
 - Android 应用：Kotlin + Jetpack Compose，复用同一个 Rust 核心；支持在其他应用和浏览器中自动填充、指纹解锁，密码库可以是网盘应用里的文件（系统文件选择器）或 WebDAV。手机和平板都适配（宽屏下列表与条目并排）。
 - iOS 应用：SwiftUI，复用同一个 Rust 核心，支持 iPhone 和 iPad；Safari 和各应用内的密码自动填充、面容 / 触控 ID 解锁，密码库可放在 iCloud 云盘（通过「文件」App）或 WebDAV。
 - 浏览器插件：Chrome / Edge / Brave / Firefox，通过 Native Messaging 与桌面端通信，密钥不离开桌面进程。
-- 导入 Bitwarden 导出（JSON / CSV / 密码保护 JSON），支持 TOTP。
+- 导入 Chrome / Edge / Brave、Firefox、Safari 导出的密码和 Bitwarden 导出（JSON / CSV / 密码保护 JSON）；按站点和用户名匹配已有登录，重复导入只加入新的内容。支持 TOTP。
 
 > **状态：** 个人项目，尚未经过独立的安全审计。使用风险自负，请定期备份 vault 文件。发现安全漏洞请私下报告，见 [SECURITY.md](SECURITY.md)。
 
@@ -42,7 +42,7 @@ cd apps/desktop && pnpm install && pnpm tauri:dev
 ```
 
 首次启动：选择 vault 的存放位置（本地目录、探测到的 iCloud Drive / Dropbox / OneDrive 目录，或坚果云 WebDAV），设置主密码。
-然后在 设置 → 导入 里选 Bitwarden 导出文件（`.json` / `.csv` / 密码保护的 `.json`）。
+然后在 设置 → 导入 里导入密码：Chrome / Edge / Brave、Firefox、Safari 导出的 CSV，或 Bitwarden 导出文件（`.json` / `.csv` / 密码保护的 `.json`）。格式按文件内容自动识别；导入后会提示删除明文导出文件。
 
 打包成可安装的应用：`pnpm tauri:build`（产物在 `target/release/bundle/`；Windows 上生成 `.msi` 和 NSIS `-setup.exe`）。发布产物里会去掉构建路径和构建者的用户名。
 
@@ -90,7 +90,7 @@ open apps/ios/Vaultlet.xcodeproj           # 然后在 iPhone 或 iPad 上运行
 ### 命令行
 
 ```bash
-cargo run -p vault-cli -- import-bitwarden ~/Vaultlet.kdbx ~/Downloads/bitwarden_export.json
+cargo run -p vault-cli -- import ~/Vaultlet.kdbx ~/Downloads/bitwarden_export.json   # 也可以是浏览器 CSV；--format 可指定格式
 cargo run -p vault-cli -- ls ~/Vaultlet.kdbx
 cargo run -p vault-cli -- totp ~/Vaultlet.kdbx GitHub
 ```

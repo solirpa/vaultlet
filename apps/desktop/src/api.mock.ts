@@ -8,6 +8,7 @@ import type {
   EventMap,
   EventName,
   Folder,
+  ImportFormat,
   Item,
   ItemSummary,
   PairedBrowser,
@@ -36,6 +37,18 @@ export const mockEvents = new Emitter();
 
 const err = (code: string, message: string): ApiError => ({ code, message });
 const delay = (ms = 120) => new Promise((r) => setTimeout(r, ms));
+
+/** The preview has no file contents to sniff, so guess the format from the file name. */
+function mockFormat(path: string): ImportFormat {
+  const name = path.toLowerCase();
+  if (/encrypted|enc/.test(name)) return 'bitwarden-encrypted-json';
+  if (name.endsWith('.json')) return 'bitwarden-json';
+  if (/chrome|edge|brave|google/.test(name)) return 'chrome-csv';
+  if (name.includes('firefox')) return 'firefox-csv';
+  if (name.includes('safari') || /(^|[\\/])passwords\.csv$/.test(name)) return 'safari-csv';
+  if (name.includes('bitwarden')) return 'bitwarden-csv';
+  return 'chrome-csv';
+}
 const clone = <T>(v: T): T => structuredClone(v);
 const nowIso = () => new Date().toISOString();
 const uuid = () =>
@@ -233,18 +246,24 @@ export const mockApi: Api = {
     state.folders = state.folders.filter((f) => !doomed.has(f.id));
   },
 
-  async importBitwardenPreview({ path, password }) {
+  async importPreview({ path, password }) {
     await delay(300);
-    const encrypted = /encrypted|enc/i.test(path);
-    if (encrypted && !password) return { items: 0, folders: 0, skipped: [], needsPassword: true };
-    if (encrypted && password === 'wrong') throw err('bad-credentials', 'Wrong file password');
-    return { items: 42, folders: 5, skipped: ['Send items are not supported (2)'], needsPassword: false };
+    const format = mockFormat(path);
+    if (format === 'bitwarden-encrypted-json' && !password) {
+      return { format, items: 0, folders: 0, skipped: [], needsPassword: true, summary: null };
+    }
+    if (password === 'wrong') throw err('import-password', 'Wrong file password');
+    const summary = state.vault === 'unlocked' ? { created: 39, updated: 2, unchanged: 1, duplicates: 1 } : null;
+    const skipped = format === 'firefox-csv' ? ['2 Firefox system entries (chrome://) skipped'] : [];
+    return { format, items: 43, folders: format.startsWith('bitwarden') ? 5 : 0, skipped, needsPassword: false, summary };
   },
-  async importBitwarden({ path, password }) {
+  async importDeleteFile() {
+    await delay(150);
+  },
+  async importRun({ path, password }) {
     await delay(600);
     requireUnlocked();
-    const encrypted = /encrypted|enc/i.test(path);
-    if (encrypted && !password) throw err('needs-password', 'File is password protected');
+    if (mockFormat(path) === 'bitwarden-encrypted-json' && !password) throw err('import-password', 'File is password protected');
     const ts = nowIso();
     const imported: Item[] = Array.from({ length: 3 }, (_, i) => ({
       id: uuid(),
@@ -266,7 +285,7 @@ export const mockApi: Api = {
     }));
     state.items.push(...imported);
     mockEvents.emit('items:changed', undefined);
-    return { imported: 42 };
+    return { created: 39, updated: 2, unchanged: 1, duplicates: 1 };
   },
 
   async settingsGet() {

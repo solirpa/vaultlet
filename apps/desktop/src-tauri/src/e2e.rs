@@ -21,6 +21,7 @@ use crate::state::AppState;
 const B64: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 const B64URL: base64::engine::GeneralPurpose = base64::engine::general_purpose::URL_SAFE_NO_PAD;
 const FIXTURE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../crates/vault-core/tests/fixtures/bitwarden.json");
+const CHROME_FIXTURE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../crates/vault-core/tests/fixtures/chrome.csv");
 
 fn invoke(webview: &tauri::WebviewWindow<tauri::test::MockRuntime>, cmd: &str, args: Value) -> Result<Value, Value> {
     get_ipc_response(
@@ -81,11 +82,13 @@ fn backend_end_to_end() {
     assert!(ok(inv("items_list", json!({}))).as_array().unwrap().is_empty());
 
     // --- import ------------------------------------------------------------------------------
-    let preview = ok(inv("import_bitwarden_preview", json!({ "path": FIXTURE })));
+    let preview = ok(inv("import_preview", json!({ "path": FIXTURE })));
+    assert_eq!(preview["format"], "bitwarden-json");
     assert_eq!(preview["items"], 6);
     assert_eq!(preview["needsPassword"], false);
-    let imported = ok(inv("import_bitwarden", json!({ "path": FIXTURE })));
-    assert_eq!(imported["imported"], 6);
+    assert_eq!(preview["summary"]["created"], 6);
+    let imported = ok(inv("import_run", json!({ "path": FIXTURE })));
+    assert_eq!(imported["created"], 6);
     let items = ok(inv("items_list", json!({})));
     let items = items.as_array().unwrap();
     assert_eq!(items.len(), 6);
@@ -109,13 +112,42 @@ fn backend_end_to_end() {
     .unwrap();
     let enc_path = root.join("export.json");
     std::fs::write(&enc_path, enc).unwrap();
-    let preview = ok(inv("import_bitwarden_preview", json!({ "path": enc_path })));
+    let preview = ok(inv("import_preview", json!({ "path": enc_path })));
+    assert_eq!(preview["format"], "bitwarden-encrypted-json");
     assert_eq!(preview["needsPassword"], true);
-    let err = inv("import_bitwarden", json!({ "path": enc_path, "password": "wrong" })).unwrap_err();
+    let err = inv("import_run", json!({ "path": enc_path, "password": "wrong" })).unwrap_err();
     assert_eq!(err["code"], "import-password");
-    let r = ok(inv("import_bitwarden", json!({ "path": enc_path, "password": "export-pw" })));
-    assert_eq!(r["imported"], 6);
+    let r = ok(inv("import_run", json!({ "path": enc_path, "password": "export-pw" })));
+    assert_eq!(r["updated"], 6);
     assert_eq!(ok(inv("items_list", json!({}))).as_array().unwrap().len(), 6, "re-import updates in place");
+
+    // A browser export: logins are matched by site and username, so a second import adds
+    // nothing; and only the file just imported may be deleted.
+    let chrome_path = root.join("Chrome Passwords.csv");
+    std::fs::copy(CHROME_FIXTURE, &chrome_path).unwrap();
+    let preview = ok(inv("import_preview", json!({ "path": chrome_path })));
+    assert_eq!(preview["format"], "chrome-csv");
+    assert_eq!(preview["summary"], json!({ "created": 4, "updated": 0, "unchanged": 0, "duplicates": 1 }));
+    let r = ok(inv("import_run", json!({ "path": chrome_path })));
+    assert_eq!(r["created"], 4);
+    let r = ok(inv("import_run", json!({ "path": chrome_path })));
+    assert_eq!(r, json!({ "created": 0, "updated": 0, "unchanged": 4, "duplicates": 1 }));
+    assert_eq!(ok(inv("items_list", json!({}))).as_array().unwrap().len(), 10);
+    let other = root.join("other.csv");
+    std::fs::write(&other, "keep me").unwrap();
+    let err = inv("import_delete_file", json!({ "path": other })).unwrap_err();
+    assert_eq!(err["code"], "invalid-argument");
+    assert!(other.exists());
+    ok(inv("import_delete_file", json!({ "path": chrome_path })));
+    assert!(!chrome_path.exists());
+    // Leave the vault as the rest of the test expects it.
+    for it in ok(inv("items_list", json!({}))).as_array().unwrap() {
+        let title = it["title"].as_str().unwrap();
+        if ["github.com", "Example Bank", "shop.example.com", "accounts.google.com"].contains(&title) {
+            ok(inv("item_purge", json!({ "id": it["id"] })));
+        }
+    }
+    assert_eq!(ok(inv("items_list", json!({}))).as_array().unwrap().len(), 6);
 
     // --- edit / folders / trash ------------------------------------------------------------
     let mut edited = full.clone();
