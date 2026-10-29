@@ -318,7 +318,7 @@ export const zhCN: Record<I18nKey, string> = {
   'import.deleteBody': '这个文件以明文保存了你的密码。既然已经导入密码库，请把它删掉。',
   'import.deleteButton': '删除导出文件',
   'import.deleted': '已删除导出文件',
-  'import.browserTip': '提示：在浏览器里关闭保存密码功能，免得它和 Vaultlet 同时提示填充。',
+  'import.browserTip': '提示：为免浏览器和 Vaultlet 同时弹出填充建议，可在 Vaultlet 扩展的设置页里关闭浏览器自带的密码管理，再删掉浏览器里保存的密码。',
 
   'security.changePassword': '修改主密码',
   'security.current': '当前密码',

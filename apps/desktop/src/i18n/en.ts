@@ -327,7 +327,7 @@ export const en = {
   'import.deleteBody': 'It holds your passwords in plain text. Now that they are in your vault, delete it.',
   'import.deleteButton': 'Delete export file',
   'import.deleted': 'Export file deleted',
-  'import.browserTip': 'Tip: turn off password saving in your browser, so it does not offer to fill alongside Vaultlet.',
+  'import.browserTip': 'Tip: so the browser stops suggesting these logins next to Vaultlet, turn off its password manager in the Vaultlet extension's options, then delete the passwords saved in the browser.',
 
   'security.changePassword': 'Change master password',
   'security.current': 'Current password',
