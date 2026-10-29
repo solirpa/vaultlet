@@ -19,6 +19,8 @@ const common = {
   options_ui: { page: 'options/index.html', open_in_tab: true },
   permissions: ['nativeMessaging', 'storage', 'activeTab', 'tabs', 'scripting', 'clipboardWrite', 'contextMenus'],
   host_permissions: ['<all_urls>'],
+  // Asked for only when the user turns off the browser's own password manager in the options page.
+  optional_permissions: ['privacy'],
   commands: {
     'fill-login': {
       suggested_key: { default: 'Ctrl+Shift+L', mac: 'Command+Shift+L' },

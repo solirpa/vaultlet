@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react';
 import { KeyRound, RefreshCw, Unlink, X } from 'lucide-react';
 import { detectBrowserName, ext, invoke, isFirefox } from '../shared/browser';
+import {
+  browserAutofillStatus,
+  requestPrivacyPermission,
+  restoreBrowserAutofill,
+  turnOffBrowserAutofill,
+  type BrowserAutofillStatus,
+  type ServiceKey,
+  type ServiceState,
+} from '../shared/browser-autofill';
 import { rpc } from '../shared/rpc';
 import { getNeverSaveOrigins, removeNeverSaveOrigin } from '../shared/storage';
 import { copyText, useExtensionState } from '../shared/useExtensionState';
@@ -41,6 +50,96 @@ function useShortcut(): string | null | undefined {
       .catch(() => setShortcut(null));
   }, []);
   return shortcut;
+}
+
+const SERVICE_LABELS: Record<ServiceKey, string> = {
+  passwordSavingEnabled: 'Save and fill passwords',
+  autofillAddressEnabled: 'Addresses and email',
+  autofillCreditCardEnabled: 'Payment cards',
+};
+
+function serviceText(s: ServiceState): string {
+  const state = s.value ? 'On' : 'Off';
+  if (s.levelOfControl === 'controlled_by_this_extension') return `${state}, turned off by Vaultlet`;
+  if (s.levelOfControl === 'controlled_by_other_extensions') return `${state}, set by another extension`;
+  if (s.levelOfControl === 'not_controllable') return `${state}, set by your administrator`;
+  return state;
+}
+
+/** Turning off the browser's own password manager, so its popup does not cover the inline menu. */
+function BrowserAutofillGroup({ browserName }: { browserName: string }) {
+  const [status, setStatus] = useState<BrowserAutofillStatus | null>(null);
+  const [services, setServices] = useState<ServiceState[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const reload = async () => {
+    const r = await browserAutofillStatus();
+    setStatus(r.status);
+    setServices(r.services);
+  };
+
+  useEffect(() => {
+    reload().catch(() => setStatus('no-permission'));
+  }, []);
+
+  const run = (fn: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    fn()
+      .then(reload)
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setBusy(false));
+  };
+
+  const onTurnOff = () => {
+    // The permission prompt needs the click itself: request before any await.
+    const granted = requestPrivacyPermission();
+    run(async () => {
+      if (!(await granted)) throw new Error(`${browserName} did not grant the permission.`);
+      await turnOffBrowserAutofill();
+    });
+  };
+
+  const what = isFirefox ? 'password manager' : 'password manager and autofill';
+  return (
+    <Group title={`${browserName}'s own ${what}`}>
+      <p className="px-4 py-3 text-[13px] leading-5 text-muted">
+        {browserName} shows its own suggestions on login fields, on top of the page, so they can cover Vaultlet's menu.
+        Vaultlet can turn them off for you{isFirefox ? '' : ' (passwords, addresses and payment cards)'}. {browserName}{' '}
+        asks for permission first, and puts its settings back if you turn this off again or remove the extension.
+      </p>
+      {services.map((s) => (
+        <Row key={s.key} label={SERVICE_LABELS[s.key]}>
+          <Dot ok={!s.value} />
+          {serviceText(s)}
+        </Row>
+      ))}
+      <div className="flex min-h-11 flex-wrap items-center gap-3 px-4 py-2.5">
+        {status === null ? (
+          <span className="text-[13px] text-muted">…</span>
+        ) : status === 'no-permission' || status === 'on' ? (
+          <button className="btn btn-primary h-7 px-2.5 text-xs" onClick={onTurnOff} disabled={busy}>
+            Turn off {browserName}'s {what}
+          </button>
+        ) : (
+          <>
+            {status === 'blocked' && (
+              <span className="text-[13px] text-muted">Vaultlet cannot change the settings that are still on.</span>
+            )}
+            <button className="btn btn-tonal h-7 px-2.5 text-xs" onClick={() => run(restoreBrowserAutofill)} disabled={busy}>
+              Give the settings back to {browserName}
+            </button>
+          </>
+        )}
+        {error && <span className="text-xs text-danger">{error}</span>}
+      </div>
+      <p className="px-4 py-3 text-xs text-faint">
+        Passwords you already saved in {browserName} stay there. After importing them into Vaultlet, delete them in{' '}
+        {isFirefox ? 'about:logins' : `${browserName}'s password manager`} so they are not suggested anymore.
+      </p>
+    </Group>
+  );
 }
 
 export function App() {
@@ -173,6 +272,8 @@ export function App() {
             </span>
           </Row>
         </Group>
+
+        <BrowserAutofillGroup browserName={browserName} />
 
         <Group title="Never offer to save on these sites">
           {never === null ? (
