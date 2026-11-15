@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vaultlet — a local-first password manager</title>
+  <meta name="description" content="Vaultlet is an open-source, local-first password manager. One encrypted KDBX file, synced through your own cloud drive or WebDAV. Desktop, browser extension and Android.">
+  <meta property="og:title" content="Vaultlet — a local-first password manager">
+  <meta property="og:description" content="One encrypted file, synced through your own cloud. No account, no server. Open source (MIT).">
+  <meta property="og:image" content="assets/poster-en.jpg">
+  <meta name="theme-color" content="#111214">
+  <link rel="icon" type="image/png" href="assets/icon-256.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#top" aria-label="Vaultlet">
+        <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="4.6"/><path d="M12.3 12.3 19.5 19.5M16.4 16.4l-2 2M19 19l-2 2"/></svg></span>
+        Vaultlet
+      </a>
+      <nav class="links">
+        <a href="#features" data-i18n="nav.features">Features</a>
+        <a href="#how" data-i18n="nav.how">How it works</a>
+        <a href="#download" data-i18n="nav.download">Download</a>
+        <a href="#faq" data-i18n="nav.faq">FAQ</a>
+      </nav>
+      <div class="nav-actions">
+        <button class="lang" type="button" id="lang-toggle" aria-label="Switch language">中文</button>
+        <a class="btn btn-ghost btn-sm" href="https://github.com/solirpa/vaultlet">GitHub</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="wrap hero-inner">
+        <div class="hero-copy">
+          <span class="eyebrow" data-i18n="hero.eyebrow">Open source · MIT · Local-first</span>
+          <h1 data-i18n="hero.title">Your passwords.<br>Your files.<br>Your cloud.</h1>
+          <p class="lead" data-i18n="hero.lead">Vaultlet keeps your whole vault in one encrypted file that you own, and syncs it through the cloud drive or WebDAV server you already use. No account, no server, nothing to trust but your own devices.</p>
+          <div class="cta">
+            <a class="btn btn-primary" href="#download" id="hero-download" data-i18n="hero.download">Download</a>
+            <a class="btn btn-ghost" href="#video" data-i18n="hero.watch">Watch the 4-minute tour</a>
+          </div>
+          <p class="hero-note" data-i18n="hero.platforms">macOS · Windows · Linux · Android · Chrome · Edge · Brave · Firefox</p>
+        </div>
+        <div class="hero-shot">
+          <div class="window">
+            <div class="window-bar"><i></i><i></i><i></i><span>Vaultlet</span></div>
+            <div class="theme-swap">
+              <img src="assets/desk-dark.webp" width="1600" height="1000" alt="Vaultlet desktop app in dark mode, showing a GitHub login with a live two-factor code">
+              <img src="assets/desk-light.webp" width="1600" height="1000" alt="" class="light">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="wrap trust">
+        <span data-i18n="trust.format">Standard KDBX 4 file</span>
+        <span>Argon2id · AES-256</span>
+        <span data-i18n="trust.compat">Opens in KeePassXC, KeePassium, Strongbox, KeePassDX</span>
+      </div>
+    </section>
+
+    <!-- Video -->
+    <section class="section" id="video">
+      <div class="wrap narrow center">
+        <h2 data-i18n="video.title">See it in four minutes</h2>
+        <p class="sub" data-i18n="video.sub">Desktop, WebDAV sync, the browser extension, passkeys, Android, and a login edited on the phone showing up on the desktop. Recorded from the real apps with demo data.</p>
+      </div>
+      <div class="wrap">
+        <div class="video-frame">
+          <video id="promo" controls preload="metadata" playsinline poster="assets/poster-en.jpg">
+            <source src="media/vaultlet-promo-en.mp4" type="video/mp4">
+          </video>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="section" id="features">
+      <div class="wrap narrow center">
+        <h2 data-i18n="features.title">Everything a password manager should do. Minus the server.</h2>
+      </div>
+
+      <div class="wrap feature">
+        <div class="feature-copy">
+          <span class="kicker" data-i18n="f1.kicker">Sync your way</span>
+          <h3 data-i18n="f1.title">One encrypted file, in a place you choose</h3>
+          <p data-i18n="f1.body">Put the vault in an iCloud Drive, Dropbox or OneDrive folder, or connect a WebDAV server such as Nutstore (坚果云) or Nextcloud. Only the encrypted file ever leaves your device.</p>
+          <ul>
+            <li data-i18n="f1.l1">Edits from several devices merge per entry; the older version goes to history</li>
+            <li data-i18n="f1.l2">Works offline, uploads when you are back online</li>
+            <li data-i18n="f1.l3">The WebDAV app password stays in the system keychain</li>
+          </ul>
+        </div>
+        <figure class="shot"><img src="assets/webdav.webp" width="1600" height="1140" loading="lazy" alt="WebDAV settings in Vaultlet with a successful connection test"></figure>
+      </div>
+
+      <div class="wrap feature reverse">
+        <div class="feature-copy">
+          <span class="kicker" data-i18n="f2.kicker">Desktop app</span>
+          <h3 data-i18n="f2.title">Fast, quiet and native</h3>
+          <p data-i18n="f2.body">A clean app for macOS, Windows and Linux that searches as you type, shows live two-factor codes and copies anything with one click.</p>
+          <ul>
+            <li data-i18n="f2.l1">Password generator, folders, favorites and custom fields</li>
+            <li data-i18n="f2.l2">Import from Chrome, Edge, Brave, Firefox, Safari or Bitwarden</li>
+            <li data-i18n="f2.l3">Auto-lock and clipboard clearing; light and dark themes</li>
+          </ul>
+        </div>
+        <figure class="shot"><img src="assets/desk-light.webp" width="1600" height="1000" loading="lazy" alt="Vaultlet desktop app in light mode"></figure>
+      </div>
+
+      <div class="wrap feature">
+        <div class="feature-copy">
+          <span class="kicker" data-i18n="f3.kicker">Browser extension</span>
+          <h3 data-i18n="f3.title">Fills, saves and edits logins where you need them</h3>
+          <p data-i18n="f3.body">On a login page Vaultlet suggests the right account and fills it with one click. Sign up somewhere new and it offers to save the login. The popup searches your vault, copies two-factor codes, edits logins and generates passwords.</p>
+          <ul>
+            <li data-i18n="f3.l1">Chrome, Edge, Brave and Firefox</li>
+            <li data-i18n="f3.l2">Talks to the desktop app over an encrypted, paired channel</li>
+          </ul>
+        </div>
+        <div class="shots-stack">
+          <figure class="shot"><img src="assets/fill-menu.webp" width="920" height="1060" loading="lazy" alt="Inline autofill menu on a demo login page"></figure>
+          <figure class="shot small"><img src="assets/popup-item.webp" width="800" height="1200" loading="lazy" alt="Vaultlet extension popup showing a login with its two-factor code"></figure>
+        </div>
+      </div>
+
+      <div class="wrap feature reverse">
+        <div class="feature-copy">
+          <span class="kicker" data-i18n="f4.kicker">Passkeys</span>
+          <h3 data-i18n="f4.title">Passkeys, kept in your own vault</h3>
+          <p data-i18n="f4.body">Create a passkey on a website and Vaultlet stores it next to your login; next time, sign in with it. The private key never leaves the desktop app, which checks the site before it signs anything.</p>
+          <ul>
+            <li data-i18n="f4.l1">Stored in the KeePassXC passkey format</li>
+            <li data-i18n="f4.l2">Passkeys imported from Bitwarden work too</li>
+          </ul>
+        </div>
+        <figure class="shot narrow-shot"><img src="assets/pk-save.webp" width="880" height="1080" loading="lazy" alt="Vaultlet asking to save a passkey for a demo site"></figure>
+      </div>
+
+      <div class="wrap feature">
+        <div class="feature-copy">
+          <span class="kicker" data-i18n="f5.kicker">Android</span>
+          <h3 data-i18n="f5.title">The same vault on your phone</h3>
+          <p data-i18n="f5.body">Unlock with your fingerprint, browse and copy with live two-factor codes, and let Vaultlet fill logins in other apps. The vault syncs over WebDAV and stays encrypted on the phone, so it works offline.</p>
+          <ul>
+            <li data-i18n="f5.l1">Fingerprint key in the Android Keystore, reset when fingerprints change</li>
+            <li data-i18n="f5.l2">Screenshots blocked, clipboard cleared after 30 seconds</li>
+            <li data-i18n="f5.l3">On iPhone and iPad, open the same file in KeePassium or Strongbox</li>
+          </ul>
+        </div>
+        <div class="phones">
+          <img src="assets/and-list.webp" width="540" height="1200" loading="lazy" alt="Vaultlet for Android: the vault list">
+          <img src="assets/and-detail.webp" width="540" height="1200" loading="lazy" alt="Vaultlet for Android: a login with its two-factor code">
+          <img src="assets/and-fill.webp" width="540" height="1200" loading="lazy" alt="Vaultlet autofill suggestion in another Android app">
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="section alt" id="how">
+      <div class="wrap narrow center">
+        <h2 data-i18n="how.title">How the extension reaches your vault</h2>
+        <p class="sub" data-i18n="how.sub">The vault and its keys stay in the desktop app. The extension only ever gets what you ask it to fill.</p>
+      </div>
+      <div class="wrap">
+        <ol class="flow">
+          <li><b data-i18n="how.n1">Web page</b></li>
+          <li class="arrow" aria-hidden="true"></li>
+          <li><b data-i18n="how.n2">Vaultlet extension</b></li>
+          <li class="arrow" aria-hidden="true"><small data-i18n="how.e2">native messaging</small></li>
+          <li><b>vaultlet-host</b></li>
+          <li class="arrow" aria-hidden="true"><small data-i18n="how.e3">local socket</small></li>
+          <li class="app"><b data-i18n="how.n4">Vaultlet desktop app</b><small data-i18n="how.n4s">vault + keys</small></li>
+        </ol>
+        <div class="points">
+          <div><h4 data-i18n="how.p1t">You approve the pairing</h4><p data-i18n="how.p1">The first time, the extension asks to connect and you approve it in the desktop app.</p></div>
+          <div><h4 data-i18n="how.p2t">Encrypted end to end</h4><p data-i18n="how.p2">Every message is sealed with NaCl box (X25519 + XSalsa20-Poly1305). The host in the middle only relays bytes.</p></div>
+          <div><h4 data-i18n="how.p3t">Locked means locked</h4><p data-i18n="how.p3">While the desktop app is locked, the extension can't fill or read anything.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Download -->
+    <section class="section" id="download">
+      <div class="wrap narrow center">
+        <h2 data-i18n="dl.title">Download Vaultlet</h2>
+        <p class="sub" data-i18n="dl.sub">Free and open source. Desktop apps and extensions are built from source by GitHub Actions.</p>
+      </div>
+      <div class="wrap downloads">
+        <a class="dl" data-os="windows" href="https://github.com/solirpa/vaultlet/releases/latest">
+          <h4>Windows</h4><p data-i18n="dl.win">Installer (.exe) or .msi</p>
+        </a>
+        <a class="dl" data-os="mac" href="https://github.com/solirpa/vaultlet/releases/latest">
+          <h4>macOS</h4><p data-i18n="dl.mac">Apple Silicon (.dmg)</p>
+        </a>
+        <a class="dl" data-os="linux" href="https://github.com/solirpa/vaultlet/releases/latest">
+          <h4>Linux</h4><p>AppImage · .deb · .rpm</p>
+        </a>
+        <a class="dl" data-os="android" href="https://github.com/solirpa/vaultlet/releases/latest">
+          <h4>Android</h4><p data-i18n="dl.android">APK, Android 8.0+</p>
+        </a>
+        <a class="dl" href="https://github.com/solirpa/vaultlet/releases/latest">
+          <h4>Chrome · Edge · Brave</h4><p data-i18n="dl.chrome">Extension (.zip)</p>
+        </a>
+        <a class="dl" href="https://github.com/solirpa/vaultlet/releases/latest">
+          <h4>Firefox</h4><p data-i18n="dl.firefox">Extension (.zip)</p>
+        </a>
+      </div>
+      <div class="wrap notes">
+        <div>
+          <h4 data-i18n="dl.n1t">macOS first launch</h4>
+          <p data-i18n="dl.n1">The app is not signed with an Apple Developer ID yet, so macOS calls a downloaded copy "damaged". After moving it to Applications, run once:</p>
+          <pre><code>xattr -cr /Applications/Vaultlet.app</code></pre>
+        </div>
+        <div>
+          <h4 data-i18n="dl.n2t">Browser extension</h4>
+          <p data-i18n="dl.n2">It isn't in the browser stores yet. Unzip it, then in Chrome / Edge / Brave open the extensions page, turn on developer mode and choose "Load unpacked". Firefox loads it as a temporary add-on from about:debugging. Then click the extension icon, choose Connect, and approve in the desktop app (Settings → Browser integration must be applied once).</p>
+        </div>
+        <div>
+          <h4 data-i18n="dl.n3t">Android</h4>
+          <p data-i18n="dl.n3">Allow installing apps from the place you open the APK. For Nutstore, use an app password from Account → Security, not your login password. Turn on autofill under Settings → Passwords & accounts → Autofill service.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section alt" id="faq">
+      <div class="wrap narrow">
+        <h2 class="center" data-i18n="faq.title">Questions</h2>
+        <details><summary data-i18n="faq.q1">Does Vaultlet upload my passwords anywhere?</summary><p data-i18n="faq.a1">No. There is no Vaultlet server or account. Encryption and decryption happen on your devices; sync only copies the encrypted file to the folder or WebDAV server you choose.</p></details>
+        <details><summary data-i18n="faq.q2">What if I forget my master password?</summary><p data-i18n="faq.a2">Nobody can recover it, including us: the vault is encrypted with a key derived from it. Keep it somewhere safe, and keep backups of the vault file.</p></details>
+        <details><summary data-i18n="faq.q3">Can I use it on iPhone or iPad?</summary><p data-i18n="faq.a3">There is no iOS app yet. Because the vault is a standard KDBX 4 file, you can open it with KeePassium or Strongbox from the same cloud folder.</p></details>
+        <details><summary data-i18n="faq.q4">Can I bring my existing passwords?</summary><p data-i18n="faq.a4">Yes: import the CSV your browser exports (Chrome, Edge, Brave, Firefox, Safari), or a Bitwarden export with its passkeys and two-factor secrets. Importing again only adds what is new. KDBX 4 files from other KeePass apps open directly.</p></details>
+        <details><summary data-i18n="faq.q5">Has Vaultlet been security audited?</summary><p data-i18n="faq.a5">Not yet. It is a personal open-source project built on standard formats and well-known libraries; read the code, and please report vulnerabilities privately as described in SECURITY.md.</p></details>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-inner">
+      <span class="brand small"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="4.6"/><path d="M12.3 12.3 19.5 19.5M16.4 16.4l-2 2M19 19l-2 2"/></svg></span>Vaultlet</span>
+      <span data-i18n="footer.license">Open source under the MIT license.</span>
+      <span class="footer-links">
+        <a href="https://github.com/solirpa/vaultlet">GitHub</a>
+        <a href="https://github.com/solirpa/vaultlet/releases" data-i18n="footer.releases">Releases</a>
+        <a href="https://github.com/solirpa/vaultlet/blob/main/SECURITY.md" data-i18n="footer.security">Security</a>
+      </span>
+    </div>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>
